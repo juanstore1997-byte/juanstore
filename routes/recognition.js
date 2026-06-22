@@ -95,7 +95,7 @@ function extractProductFromOCR(text) {
 
   const lineas = text.split('\n').map(l => l.trim()).filter(l => l.length > 1 && l.length < 100);
 
-  const marcas = /Lilicrops|Philco|Oster|Samsung|Apple|Xiaomi|Sony|LG|Bosch|Kenwood|Black.?Decker|Hamilton|Cuisinart|Ninja|Vitamix|KitchenAid|Truper|Stanley|Dewalt|Milwaukee|Craftsman|Anker|Baseus|Logitech|Corsair|Kingston|SanDisk|TP-Link|Huawei|Canon|Nikon|GoPro|DJI|Philips|Braun|Panasonic|Toshiba|Asus|Acer|MSI|Lenovo|Dell|HP|Vinci/i;
+  const marcas = /Lilicrops|Philco|Oster|Samsung|Apple|Xiaomi|Sony|LG|Bosch|Kenwood|Black.?Decker|Hamilton|Cuisinart|Ninja|Vitamix|KitchenAid|Truper|Stanley|Dewalt|Milwaukee|Craftsman|Anker|Baseus|Logitech|Corsair|Kingston|SanDisk|TP-Link|Huawei|Canon|Nikon|GoPro|DJI|Philips|Braun|Panasonic|Toshiba|Asus|Acer|MSI|Lenovo|Dell|HP|Vinci|Luukonde|LUUKONDE|Luxornon|LUXORNON/i;
 
   let marca = '';
   let nombre = '';
@@ -113,20 +113,32 @@ function extractProductFromOCR(text) {
 
   // Buscar palabras clave útiles (números de modelo, características)
   for (const linea of lineas) {
-    // Buscar modelos tipo S-9058, MX-123, etc.
-    const modelMatch = linea.match(/[A-Z]{1,3}-?\d{3,5}/g);
+    // Buscar modelos tipo D-802, S-9058, MX-123, etc.
+    const modelMatch = linea.match(/[A-Z]{1,4}-?\d{2,5}/g);
     if (modelMatch) keywords.push(...modelMatch);
 
     // Buscar palabras en mayúsculas (probablemente nombre de producto)
     const upperWords = linea.match(/[A-Z]{2,}/g);
     if (upperWords && upperWords.length >= 1) {
-      keywords.push(...upperWords.filter(w => w.length > 2));
+      // Filtrar palabras que parecen basura OCR (letras repetidas)
+      const cleanUpper = upperWords.filter(w => w.length > 2 && !/(.)\1{2,}/.test(w));
+      keywords.push(...cleanUpper);
     }
 
     // Buscar palabras con números (modelos, versiones)
     const alphanumeric = linea.match(/[A-Za-z]+\d+/g);
     if (alphanumeric) keywords.push(...alphanumeric);
   }
+
+  // Limpiar keywords de basura OCR
+  const cleanKeywords = keywords.filter(k => {
+    // Quitar palabras que parecen basura (muy largas sin vocales, o con muchas letras repetidas)
+    if (k.length > 15) return false;
+    if (/(.)\1{3,}/.test(k)) return false;
+    // Quitar palabras que no tienen vocales
+    if (!/[aeiou]/i.test(k)) return false;
+    return true;
+  });
 
   // Si no encontramos nombre por marca, buscar la línea más descriptiva
   if (!nombre) {
@@ -150,10 +162,19 @@ function extractProductFromOCR(text) {
     }
   }
 
+  // Limpiar nombre de basura OCR
+  if (nombre) {
+    nombre = nombre
+      .replace(/\b[A-Z]{5,}\b/g, '')  // Quitar palabras largas en mayúsculas
+      .replace(/\b[A-Z]*([A-Z])\1{2,}[A-Z]*\b/g, '')  // Quitar letras repetidas
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   return {
     nombre: nombre.substring(0, 100),
     marca,
-    keywords: [...new Set(keywords)].slice(0, 10)
+    keywords: [...new Set(cleanKeywords)].slice(0, 10)
   };
 }
 
@@ -231,14 +252,25 @@ function viToSearchQuery(viResult) {
 function buildSmartQuery(ocrData, viQuery) {
   const parts = [];
 
-  // Prioridad 1: Palabras clave OCR (modelos, números)
+  // Prioridad 1: Modelo (D-802, etc.)
   if (ocrData.keywords && ocrData.keywords.length > 0) {
-    parts.push(ocrData.keywords.join(' '));
+    const models = ocrData.keywords.filter(k => /[A-Z]-?\d{2,5}/i.test(k));
+    if (models.length > 0) {
+      parts.push(models[0]);
+    }
   }
 
-  // Prioridad 2: Nombre del producto OCR
+  // Prioridad 2: Nombre del producto OCR (sin basura)
   if (ocrData.nombre) {
-    parts.push(ocrData.nombre);
+    // Limpiar nombre: quitar palabras basura
+    const cleanNombre = ocrData.nombre
+      .replace(/\b[A-Z]{5,}\b/g, '')
+      .replace(/\b[A-Z]*([A-Z])\1{2,}[A-Z]*\b/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (cleanNombre.length > 3) {
+      parts.push(cleanNombre);
+    }
   }
 
   // Prioridad 3: Marca
@@ -246,17 +278,16 @@ function buildSmartQuery(ocrData, viQuery) {
     parts.push(ocrData.marca);
   }
 
-  // Si no hay nada útil del OCR, usar ViT de forma inteligente
+  // Si no hay nada útil del OCR, usar ViT
   if (parts.length === 0 && viQuery) {
-    // Mapear categorías ViT a queries de búsqueda más genéricas
     const vitSuggestions = {
       'box packaging': 'product box container',
       'printer office': 'office supplies equipment',
       'photocopier': 'office machine copier',
       'projector': 'projector display',
-      'tobacco shop': 'tobacco products accessories',
-      'tobacconist shop': 'tobacco products',
-      'tobacconist': 'tobacco products accessories',
+      'citrus juicer': 'citrus juicer electric',
+      'juicer': 'electric juicer',
+      'blender': 'electric blender',
     };
 
     const viWords = viQuery.split(' ');
