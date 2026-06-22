@@ -56,6 +56,11 @@ db.exec(`
   );
 `);
 
+// Agregar columna foto_referencia si no existe
+try {
+  db.exec(`ALTER TABLE productos ADD COLUMN foto_referencia TEXT`);
+} catch (e) { /* columna ya existe */ }
+
 function initAdmin() {
   const user = process.env.ADMIN_USER || 'admin';
   const pass = process.env.ADMIN_PASS || 'admin123';

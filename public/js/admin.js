@@ -162,6 +162,7 @@ function seleccionarResultado(el) {
     .replace(/\s*[-–|]\s*(Amazon|eBay|Mercado Libre|Linio|Falabella|Ripley|Paris|Walmart|AliExpress|Shopify|Home Depot|Target|Best Buy|Costco|Etsy|Jet).*$/i, '')
     .replace(/\s*[-–|]\s*(com|com\.bo|org\.bo|net).*$/i, '')
     .replace(/\s*[-–|]\s*Best Sellers.*$/i, '')
+    .replace(/\b(LUUKMONDE|Elite Gourmet|BLACK\+DECKER|OVENTE|ASTRALSHIP)\s*/gi, '')
     .trim();
 
   // Llenar TODOS los campos del formulario
@@ -170,17 +171,19 @@ function seleccionarResultado(el) {
   if (link) document.getElementById('productoLink').value = link;
   if (store) document.getElementById('productoFuente').value = store;
 
-  // Establecer imagen de referencia en el preview
+  // Llenar foto de referencia con proxy
   if (image) {
+    const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(image)}`;
     try {
-      const fp = document.getElementById('fotoPreview');
-      fp.src = image;
+      const fp = document.getElementById('fotoReferencia');
+      fp.src = proxyUrl;
       fp.style.display = 'block';
+      document.getElementById('productoFotoReferencia').value = image;
     } catch (e) { /* skip */ }
   }
 
   // Intentar extraer marca del título
-  const marcas = nombre.match(/(Lilicrops|Philco|Oster|Samsung|Apple|Xiaomi|Sony|LG|Bosch|Kenwood|Black.?Decker|Hamilton|Cuisinart|Ninja|KitchenAid|Truper|Stanley|Dewalt|Milwaukee|Craftsman|Anker|Baseus|Logitech|Corsair|Kingston|SanDisk|TP-Link|Huawei|Canon|Nikon|GoPro|DJI|Vinci|Breville|Cuisinart|Luukonde|LUUKMONDE)/i);
+  const marcas = nombre.match(/(Lilicrops|Philco|Oster|Samsung|Apple|Xiaomi|Sony|LG|Bosch|Kenwood|Black.?Decker|Hamilton|Cuisinart|Ninja|KitchenAid|Truper|Stanley|Dewalt|Milwaukee|Craftsman|Anker|Baseus|Logitech|Corsair|Kingston|SanDisk|TP-Link|Huawei|Canon|Nikon|GoPro|DJI|Vinci|Breville|Cuisinart|Luukonde|LUUKMONDE|Elite Gourmet|BLACK\+DECKER|OVENTE|ASTRALSHIP)/i);
   if (marcas) {
     document.getElementById('productoMarca').value = marcas[0];
   }
@@ -192,7 +195,7 @@ function seleccionarResultado(el) {
   }
 
   // Intentar extraer precio del snippet
-  const precioMatch = snippet.match(/\$(\d+[\.,]?\d*)/);
+  const precioMatch = snippet.match(/[\$\Bs\.]+\s*(\d+[\.,]?\d*)/);
   if (precioMatch) {
     const precio = parseFloat(precioMatch[1].replace(',', '.'));
     if (precio > 0) {
@@ -218,7 +221,7 @@ function seleccionarResultado(el) {
   }
 
   const storeInfo = store ? ` (de ${store})` : '';
-  showResult(`<strong style="color:green;">✅ Seleccionado${storeInfo}:</strong> ${nombreLimpio}<br><small>Campos auto-completados. Revisa y ajusta antes de guardar.</small>`);
+  showResult(`<strong style="color:green;">✅ Seleccionado${storeInfo}:</strong> ${nombreLimpio}<br><small>Foto de referencia guardada. Revisa y ajusta antes de guardar.</small>`);
 }
 
 async function buscarProductoWeb() {
@@ -307,6 +310,8 @@ function openAddProduct() {
   document.getElementById('productForm').reset();
   document.getElementById('productoId').value = '';
   document.getElementById('fotoPreview').style.display = 'none';
+  document.getElementById('fotoReferencia').style.display = 'none';
+  document.getElementById('productoFotoReferencia').value = '';
   document.getElementById('aiResult').style.display = 'none';
   document.getElementById('buscarQuery').value = '';
   document.getElementById('buscarQuery').focus();
@@ -329,9 +334,21 @@ async function editProduct(id) {
   document.getElementById('productoFuente').value = p.fuente || '';
   document.getElementById('productoLink').value = p.link_original || '';
   document.getElementById('productoEstado').value = p.estado || 'borrador';
+  // Foto propia
   if (p.foto_url) {
     document.getElementById('fotoPreview').src = p.foto_url;
     document.getElementById('fotoPreview').style.display = 'block';
+  } else {
+    document.getElementById('fotoPreview').style.display = 'none';
+  }
+  // Foto de referencia
+  if (p.foto_referencia) {
+    document.getElementById('fotoReferencia').src = `/api/proxy-image?url=${encodeURIComponent(p.foto_referencia)}`;
+    document.getElementById('fotoReferencia').style.display = 'block';
+    document.getElementById('productoFotoReferencia').value = p.foto_referencia;
+  } else {
+    document.getElementById('fotoReferencia').style.display = 'none';
+    document.getElementById('productoFotoReferencia').value = '';
   }
   document.getElementById('productModal').classList.add('active');
 }
@@ -357,6 +374,9 @@ document.getElementById('productForm').addEventListener('submit', async (e) => {
   formData.append('fuente', document.getElementById('productoFuente').value);
   formData.append('link_original', document.getElementById('productoLink').value);
   formData.append('estado', document.getElementById('productoEstado').value);
+  // Foto de referencia de Amazon
+  const fotoRef = document.getElementById('productoFotoReferencia').value;
+  if (fotoRef) formData.append('foto_referencia', fotoRef);
 
   const foto = document.getElementById('productoFoto').files[0];
   if (foto) formData.append('foto', foto);

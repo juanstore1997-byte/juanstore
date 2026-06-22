@@ -42,6 +42,33 @@ app.use('/api/recognition', recognitionRoutes);
 const paymentRoutes = require('./routes/payment');
 app.use('/api/payment', paymentRoutes);
 
+// Proxy de imágenes - fetch desde Amazon/externos y servir desde nuestro servidor
+app.get('/api/proxy-image', async (req, res) => {
+  const { url } = req.query;
+  if (!url || !url.startsWith('http')) {
+    return res.status(400).json({ error: 'URL requerida' });
+  }
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15',
+        'Accept': 'image/*',
+        'Referer': 'https://www.amazon.com/',
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) return res.status(response.status).send('Image fetch failed');
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    const buffer = await response.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.log('Proxy image error:', err.message);
+    res.status(500).send('Proxy error');
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });

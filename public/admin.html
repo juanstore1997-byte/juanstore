@@ -106,9 +106,14 @@
       <form id="productForm">
         <input type="hidden" id="productoId">
         <div class="form-group">
-          <label>Foto del producto</label>
+          <label>Foto del producto (tu foto)</label>
           <input type="file" id="productoFoto" accept="image/*" onchange="previewFoto(this)">
           <img id="fotoPreview" class="foto-preview" style="display:none;">
+        </div>
+        <div class="form-group">
+          <label> Foto de referencia (de tienda web)</label>
+          <img id="fotoReferencia" class="foto-preview" style="display:none;">
+          <input type="hidden" id="productoFotoReferencia">
         </div>
         <div class="form-group" id="buscarSection">
           <label>🔍 Buscar producto en web</label>

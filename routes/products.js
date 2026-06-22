@@ -47,7 +47,7 @@ router.get('/:id', (req, res) => {
 // Admin: create product
 router.post('/', authMiddleware, upload.single('foto'), (req, res) => {
   try {
-    const { nombre, descripcion, marca, categoria, color, material, caracteristicas, precio_original, precio_venta, fuente, link_original, foto_gemini, estado } = req.body;
+    const { nombre, descripcion, marca, categoria, color, material, caracteristicas, precio_original, precio_venta, fuente, link_original, foto_gemini, foto_referencia, estado } = req.body;
 
     if (!nombre) return res.status(400).json({ error: 'Nombre requerido' });
 
@@ -58,9 +58,9 @@ router.post('/', authMiddleware, upload.single('foto'), (req, res) => {
     const foto_url = req.file ? `/uploads/${req.file.filename}` : null;
 
     const result = db.prepare(`
-      INSERT INTO productos (nombre, descripcion, marca, categoria, color, material, caracteristicas, precio_original, precio_venta, foto_url, foto_gemini, fuente, link_original, estado)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(nombre, descripcion, marca, categoria, color, material, caracteristicas, precio_original, precio_venta, foto_url, foto_gemini, fuente, link_original, estado || 'borrador');
+      INSERT INTO productos (nombre, descripcion, marca, categoria, color, material, caracteristicas, precio_original, precio_venta, foto_url, foto_gemini, foto_referencia, fuente, link_original, estado)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(nombre, descripcion, marca, categoria, color, material, caracteristicas, precio_original, precio_venta, foto_url, foto_gemini, foto_referencia, fuente, link_original, estado || 'borrador');
 
     const product = db.prepare('SELECT * FROM productos WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json(product);
@@ -76,14 +76,14 @@ router.put('/:id', authMiddleware, upload.single('foto'), (req, res) => {
     const existing = db.prepare('SELECT * FROM productos WHERE id = ?').get(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
 
-    const { nombre, descripcion, marca, categoria, color, material, caracteristicas, precio_original, precio_venta, fuente, link_original, foto_gemini, estado } = req.body;
+    const { nombre, descripcion, marca, categoria, color, material, caracteristicas, precio_original, precio_venta, fuente, link_original, foto_gemini, foto_referencia, estado } = req.body;
 
     const foto_url = req.file ? `/uploads/${req.file.filename}` : existing.foto_url;
 
     db.prepare(`
-      UPDATE productos SET nombre=?, descripcion=?, marca=?, categoria=?, color=?, material=?, caracteristicas=?, precio_original=?, precio_venta=?, foto_url=?, foto_gemini=?, fuente=?, link_original=?, estado=?, updated_at=CURRENT_TIMESTAMP
+      UPDATE productos SET nombre=?, descripcion=?, marca=?, categoria=?, color=?, material=?, caracteristicas=?, precio_original=?, precio_venta=?, foto_url=?, foto_gemini=?, foto_referencia=?, fuente=?, link_original=?, estado=?, updated_at=CURRENT_TIMESTAMP
       WHERE id=?
-    `).run(nombre || existing.nombre, descripcion ?? existing.descripcion, marca ?? existing.marca, categoria ?? existing.categoria, color ?? existing.color, material ?? existing.material, caracteristicas ?? existing.caracteristicas, precio_original ?? existing.precio_original, precio_venta ?? existing.precio_venta, foto_url, foto_gemini ?? existing.foto_gemini, fuente ?? existing.fuente, link_original ?? existing.link_original, estado || existing.estado, req.params.id);
+    `).run(nombre || existing.nombre, descripcion ?? existing.descripcion, marca ?? existing.marca, categoria ?? existing.categoria, color ?? existing.color, material ?? existing.material, caracteristicas ?? existing.caracteristicas, precio_original ?? existing.precio_original, precio_venta ?? existing.precio_venta, foto_url, foto_gemini ?? existing.foto_gemini, foto_referencia ?? existing.foto_referencia, fuente ?? existing.fuente, link_original ?? existing.link_original, estado || existing.estado, req.params.id);
 
     const product = db.prepare('SELECT * FROM productos WHERE id = ?').get(req.params.id);
     res.json(product);
