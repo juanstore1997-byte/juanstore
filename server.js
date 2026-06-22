@@ -20,8 +20,7 @@ if (!fs.existsSync(uploadsDir)) {
 }
 
 // CORS configurado para producción
-const allowedOrigin = process.env.ALLOWED_ORIGIN || 'http://localhost:3000';
-app.use(cors({ origin: allowedOrigin, credentials: true }));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
