@@ -423,4 +423,21 @@ router.post('/search-product', authMiddleware, async (req, res) => {
   }
 });
 
+// Endpoint público de búsqueda (sin auth) para debug
+router.post('/search-public', async (req, res) => {
+  const { query } = req.body;
+  if (!query) {
+    return res.status(400).json({ error: 'Query requerido' });
+  }
+  try {
+    console.log('Búsqueda pública:', query);
+    const results = await searchProduct(query);
+    console.log('Resultados:', results.results?.length || 0);
+    res.json({ results: results.results || [], total: results.total || 0, query });
+  } catch (err) {
+    console.error('Error en búsqueda pública:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

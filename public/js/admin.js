@@ -257,12 +257,12 @@ async function buscarProductoWeb() {
               <strong style="font-size:0.9rem;color:#333;">${r.title}</strong>
             </div>
             <span style="color:#666;font-size:0.8rem;display:block;">${(r.snippet || '').substring(0, 150)}</span>
-            <span style="color:#2196f3;font-size:0.75rem;">✅ Clic para auto-completar todos los campos</span>
+            <span style="color:#2196f3;font-size:0.75rem;">✅ Clic para auto-completar</span>
           </div>
         </div>`;
       }).join('');
 
-      showResult(`<strong style="color:#333;">📦 Productos encontrados para "${query}":</strong><br><small style="color:#666;">Haz clic en un resultado para auto-completar el formulario:</small><br>${cards}`);
+      showResult(`<strong style="color:#333;">📦 Productos encontrados para "${query}":</strong><br><small style="color:#666;">Haz clic en un resultado:</small><br>${cards}`);
     } else {
       showResult(`<em>Sin resultados para "${query}". Intenta con otro nombre más específico.</em>`);
     }
@@ -308,7 +308,8 @@ function openAddProduct() {
   document.getElementById('productoId').value = '';
   document.getElementById('fotoPreview').style.display = 'none';
   document.getElementById('aiResult').style.display = 'none';
-  document.getElementById('buscarSection').style.display = 'none';
+  document.getElementById('buscarQuery').value = '';
+  document.getElementById('buscarQuery').focus();
   document.getElementById('productModal').classList.add('active');
 }
 
