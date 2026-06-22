@@ -22,7 +22,7 @@ async function searchProduct(query) {
     } catch (e) { console.log('Google error:', e.message); }
   }
 
-  // 2. Amazon search (funciona desde servidores)
+  // 2. Amazon mobile scraping
   try {
     const amazonResults = await searchAmazon(cleanQuery);
     for (const r of amazonResults) {
@@ -32,17 +32,7 @@ async function searchProduct(query) {
     console.log('Amazon:', amazonResults.length);
   } catch (e) { console.log('Amazon error:', e.message); }
 
-  // 3. MercadoLibre search
-  try {
-    const mlResults = await searchMercadoLibre(cleanQuery);
-    for (const r of mlResults) {
-      const key = (r.title || '').toLowerCase().substring(0, 40);
-      if (!seen.has(key)) { seen.add(key); results.push(r); }
-    }
-    console.log('MercadoLibre:', mlResults.length);
-  } catch (e) { console.log('ML error:', e.message); }
-
-  // 4. Variaciones si hay pocos resultados
+  // 3. Variaciones si hay pocos resultados
   if (results.length < 3) {
     const variations = buildSearchVariations(cleanQuery);
     for (const v of variations) {
@@ -92,68 +82,14 @@ function buildSearchVariations(query) {
   return [...new Set(variations)];
 }
 
-// ========== AMAZON ==========
+// ========== AMAZON (mobile scraping) ==========
 async function searchAmazon(query) {
   const url = `https://www.amazon.com/s?k=${encodeURIComponent(query)}&language=en_US`;
   const response = await fetch(url, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'gzip, deflate',
-    },
-    signal: AbortSignal.timeout(15000),
-    redirect: 'follow',
-  });
-
-  if (!response.ok) {
-    console.log('Amazon status:', response.status);
-    return [];
-  }
-
-  const html = await response.text();
-  const $ = cheerio.load(html);
-  const results = [];
-
-  // Amazon search results
-  $('[data-component-type="s-search-result"]').each((i, el) => {
-    if (i >= 6) return false;
-
-    const titleEl = $(el).find('h2 a span, h2 span');
-    const title = titleEl.text().trim();
-    const linkEl = $(el).find('h2 a');
-    const link = linkEl.attr('href') || '';
-    const priceWhole = $(el).find('.a-price-whole').first().text().trim();
-    const priceFraction = $(el).find('.a-price-fraction').first().text().trim();
-    const imgEl = $(el).find('img.s-image');
-    const image = imgEl.attr('src') || '';
-
-    if (!title || title.length < 3) return;
-
-    const fullLink = link.startsWith('http') ? link : `https://www.amazon.com${link}`;
-    const price = priceWhole ? `$${priceWhole}${priceFraction ? '.' + priceFraction : ''}` : '';
-
-    results.push({
-      title: title.substring(0, 150),
-      link: fullLink,
-      snippet: price ? `Precio: ${price}` : '',
-      image,
-      source: 'Amazon',
-      store: 'Amazon',
-    });
-  });
-
-  return results;
-}
-
-// ========== MERCADOLIBRE ==========
-async function searchMercadoLibre(query) {
-  const url = `https://listado.mercadolibre.com.bo/${encodeURIComponent(query.replace(/\s+/g, '-'))}`;
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
       'Accept': 'text/html',
-      'Accept-Language': 'es-BO,es;q=0.9',
+      'Accept-Language': 'en-US,en;q=0.9',
     },
     signal: AbortSignal.timeout(15000),
     redirect: 'follow',
@@ -165,27 +101,41 @@ async function searchMercadoLibre(query) {
   const $ = cheerio.load(html);
   const results = [];
 
-  $('.ui-search-layout__item').each((i, el) => {
+  $('[data-component-type="s-search-result"]').each((i, el) => {
     if (i >= 6) return false;
 
-    const titleEl = $(el).find('.ui-search-item__title, .poly-component__title');
-    const title = titleEl.text().trim();
-    const linkEl = $(el).find('a');
-    const link = linkEl.attr('href') || '';
-    const priceEl = $(el).find('.andes-money-amount__fraction, .poly-price__current .andes-money-amount__fraction');
-    const price = priceEl.text().trim();
-    const imgEl = $(el).find('img').first();
-    const image = imgEl.attr('src') || '';
+    // Title
+    const title = $(el).find('h2 span').text().trim();
+    if (!title || title.length < 3) return;
 
-    if (!title || !link || title.length < 3) return;
+    // Price
+    const price = $(el).find('.a-price .a-offscreen').first().text().trim();
+
+    // Link - find any link with /dp/ (product link)
+    let link = '';
+    $(el).find('a').each((j, aEl) => {
+      const href = $(aEl).attr('href') || '';
+      if (href.includes('/dp/') && !link) {
+        link = href.startsWith('http') ? href : `https://www.amazon.com${href}`;
+      }
+    });
+
+    // Image - find the good image (from media-amazon.com, not grey-pixel)
+    let image = '';
+    $(el).find('img').each((j, imgEl) => {
+      const src = $(imgEl).attr('src') || '';
+      if (src.includes('media-amazon.com') && !image) {
+        image = src;
+      }
+    });
 
     results.push({
       title: title.substring(0, 150),
-      link: link.startsWith('http') ? link : `https://www.mercadolibre.com.bo${link}`,
-      snippet: price ? `Precio: Bs. ${price}` : '',
+      link,
+      snippet: price ? `Precio: ${price}` : '',
       image,
-      source: 'MercadoLibre',
-      store: 'MercadoLibre',
+      source: 'Amazon',
+      store: 'Amazon',
     });
   });
 
@@ -217,17 +167,17 @@ async function searchGoogleCustom(query) {
 function extractStore(url) {
   if (!url) return '';
   const lower = url.toLowerCase();
-  const stores = {
-    'amazon.': 'Amazon', 'walmart.': 'Walmart', 'ebay.': 'eBay',
-    'mercadolibre': 'MercadoLibre', 'aliexpress.': 'AliExpress',
-    'homedepot.': 'Home Depot', 'target.': 'Target', 'bestbuy.': 'Best Buy',
-    'costco.': 'Costco', 'etsy.': 'Etsy', 'linio.': 'Linio',
-    'falabella.': 'Falabella', 'ripley.': 'Ripley', 'paris.': 'Paris',
-    'banggood.': 'Banggood',
-  };
-  for (const [domain, name] of Object.entries(stores)) {
-    if (lower.includes(domain)) return name;
-  }
+  if (lower.includes('amazon.')) return 'Amazon';
+  if (lower.includes('mercadolibre')) return 'MercadoLibre';
+  if (lower.includes('ebay.')) return 'eBay';
+  if (lower.includes('aliexpress.')) return 'AliExpress';
+  if (lower.includes('walmart.')) return 'Walmart';
+  if (lower.includes('bestbuy.')) return 'Best Buy';
+  if (lower.includes('target.')) return 'Target';
+  if (lower.includes('etsy.')) return 'Etsy';
+  if (lower.includes('linio.')) return 'Linio';
+  if (lower.includes('falabella.')) return 'Falabella';
+  if (lower.includes('ripley.')) return 'Ripley';
   try {
     const hostname = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
     return hostname.replace('www.', '').split('.')[0];
