@@ -10,10 +10,10 @@ services:
       - key: NODE_ENV
         value: production
       - key: JWT_SECRET
-        generateValue: true
+        value: j4unSt0r3_s3cr3t_k3y_2026_x9mP
       - key: ADMIN_USER
         value: admin
       - key: ADMIN_PASS
-        generateValue: true
+        value: "Juan$2026!Store"
       - key: ALLOWED_ORIGIN
         sync: false

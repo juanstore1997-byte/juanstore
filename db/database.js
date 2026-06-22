@@ -57,14 +57,15 @@ db.exec(`
 `);
 
 function initAdmin() {
-  const existing = db.prepare('SELECT id FROM admin LIMIT 1').get();
-  if (!existing) {
-    const user = process.env.ADMIN_USER || 'admin';
-    const pass = process.env.ADMIN_PASS;
-    if (!pass) {
-      console.warn('ADMIN_PASS not set — using insecure default. Set it in .env');
-    }
-    const hash = bcrypt.hashSync(pass || 'changeme', 10);
+  const user = process.env.ADMIN_USER || 'admin';
+  const pass = process.env.ADMIN_PASS || 'admin123';
+  const hash = bcrypt.hashSync(pass, 10);
+  
+  const existing = db.prepare('SELECT id FROM admin WHERE usuario = ?').get(user);
+  if (existing) {
+    db.prepare('UPDATE admin SET password_hash = ? WHERE usuario = ?').run(hash, user);
+    console.log(`Admin actualizado: ${user}`);
+  } else {
     db.prepare('INSERT INTO admin (usuario, password_hash) VALUES (?, ?)').run(user, hash);
     console.log(`Admin creado: ${user}`);
   }

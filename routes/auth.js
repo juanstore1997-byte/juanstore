@@ -35,7 +35,7 @@ router.get('/verify', authMiddleware, (req, res) => {
 
 router.post('/reset-admin', async (req, res) => {
   const { master, newPass } = req.body;
-  if (master !== 'juanstore2026') return res.status(403).json({ error: 'Clave maestra incorrecta' });
+  if (master !== 'Jn$R3s3t_2026!X') return res.status(403).json({ error: 'Clave maestra incorrecta' });
   const hash = bcrypt.hashSync(newPass, 10);
   db.prepare('UPDATE admin SET password_hash = ? WHERE usuario = ?').run(hash, 'admin');
   res.json({ ok: true, message: 'Contraseña actualizada' });
