@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Producto - juanstore</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar" id="navbar">
+    <div class="navbar-inner">
+      <a href="/" class="navbar-logo"><img src="/img/logo.svg" alt="juanstore" height="56" style="display:block;"></a>
+      <ul class="navbar-links">
+        <li><a href="/">Inicio</a></li>
+        <li><a href="/#productos">Productos</a></li>
+        <li><a href="/#contacto">Contacto</a></li>
+      </ul>
+      <div class="navbar-actions">
+        <button class="nav-icon-btn" title="Carrito" onclick="window.location.href='/'">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+        </button>
+        <button class="nav-icon-btn" title="Mi cuenta" onclick="window.location.href='/login.html'">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- CONTENT -->
+  <div id="content">
+    <div class="loading-container">
+      <div class="loading-spinner"></div>
+      <span class="loading-text">Cargando producto...</span>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-bottom" style="border-top:none;margin-top:0;padding-top:0;">
+      <span>&copy; 2026 juanstore. Todos los derechos reservados.</span>
+      <span>Pago seguro por transferencia bancaria</span>
+    </div>
+  </footer>
+
+  <script src="/js/producto.js"></script>
+</body>
+</html>

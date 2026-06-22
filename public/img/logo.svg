@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#059669;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00cc6a;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:0.6" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:0" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="400" height="120" fill="#0a0a0a" rx="12"/>
+
+  <!-- Circuit lines decoration -->
+  <line x1="20" y1="15" x2="80" y2="15" stroke="#00ff88" stroke-width="0.5" opacity="0.3"/>
+  <line x1="20" y1="15" x2="20" y2="40" stroke="#00ff88" stroke-width="0.5" opacity="0.3"/>
+  <circle cx="20" cy="15" r="2" fill="#00ff88" opacity="0.5"/>
+
+  <line x1="380" y1="105" x2="320" y2="105" stroke="#00ff88" stroke-width="0.5" opacity="0.3"/>
+  <line x1="380" y1="105" x2="380" y2="80" stroke="#00ff88" stroke-width="0.5" opacity="0.3"/>
+  <circle cx="380" cy="105" r="2" fill="#00ff88" opacity="0.5"/>
+
+  <!-- Hexagon icon -->
+  <g transform="translate(50, 60)" filter="url(#glow)">
+    <polygon points="0,-28 24,-14 24,14 0,28 -24,14 -24,-14" fill="none" stroke="url(#neonGrad)" stroke-width="2"/>
+    <polygon points="0,-18 15,-9 15,9 0,18 -15,9 -15,-9" fill="none" stroke="#00ff88" stroke-width="1" opacity="0.5"/>
+    <!-- Inner J letter -->
+    <text x="0" y="8" text-anchor="middle" font-family="'Inter','Segoe UI',system-ui,sans-serif" font-size="26" font-weight="900" fill="url(#neonGrad)" filter="url(#glow)">J</text>
+  </g>
+
+  <!-- "juan" text -->
+  <text x="90" y="68" font-family="'Inter','Segoe UI',system-ui,sans-serif" font-size="42" font-weight="200" fill="#ffffff" letter-spacing="2">juan</text>
+
+  <!-- "store" text -->
+  <text x="218" y="68" font-family="'Inter','Segoe UI',system-ui,sans-serif" font-size="42" font-weight="800" fill="url(#neonGrad)" letter-spacing="1" filter="url(#glow)">store</text>
+
+  <!-- Dot accent -->
+  <circle cx="348" y="62" r="4" fill="#00ff88" filter="url(#glow)"/>
+
+  <!-- Tagline -->
+  <text x="200" y="95" text-anchor="middle" font-family="'Inter','Segoe UI',system-ui,sans-serif" font-size="9" fill="#00ff88" opacity="0.6" letter-spacing="6">TECNOLOGÍA · PRECIO · CONFIANZA</text>
+
+  <!-- Subtle scan line effect -->
+  <rect x="0" y="0" width="400" height="1" fill="#00ff88" opacity="0.05"/>
+  <rect x="0" y="40" width="400" height="1" fill="#00ff88" opacity="0.03"/>
+  <rect x="0" y="80" width="400" height="1" fill="#00ff88" opacity="0.05"/>
+  <rect x="0" y="119" width="400" height="1" fill="#00ff88" opacity="0.03"/>
+</svg>

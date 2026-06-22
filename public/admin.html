@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - Tienda</title>
+  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; }
+    .admin-header { background: #1a1a2e; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    .admin-header h1 { font-size: 1.3rem; }
+    .btn-logout { background: #e74c3c; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
+    .stats-bar { display: flex; gap: 1rem; padding: 1rem 2rem; flex-wrap: wrap; }
+    .stat-card { background: white; padding: 1rem 1.5rem; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); flex: 1; min-width: 150px; }
+    .stat-card h3 { font-size: 0.85rem; color: #666; margin-bottom: 0.3rem; }
+    .stat-card .number { font-size: 1.8rem; font-weight: 700; color: #25D366; }
+    .main-content { padding: 1rem 2rem; }
+    .section-title { font-size: 1.2rem; margin-bottom: 1rem; color: #333; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .tab-btn { padding: 0.6rem 1.2rem; border: none; background: #ddd; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    .tab-btn.active { background: #25D366; color: white; }
+    .table-container { background: white; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 0.8rem 1rem; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8f9fa; font-weight: 600; font-size: 0.85rem; color: #666; }
+    .badge { padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+    .badge-success { background: #d4edda; color: #155724; }
+    .badge-warning { background: #fff3cd; color: #856404; }
+    .badge-danger { background: #f8d7da; color: #721c24; }
+    .badge-info { background: #d1ecf1; color: #0c5460; }
+    .btn-sm { padding: 0.3rem 0.7rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; margin-right: 0.3rem; }
+    .btn-primary { background: #3498db; color: white; }
+    .btn-success { background: #27ae60; color: white; }
+    .btn-danger { background: #e74c3c; color: white; }
+    .btn-warning { background: #f39c12; color: white; }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; justify-content: center; align-items: center; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: white; border-radius: 12px; padding: 2rem; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+    .modal h2 { margin-bottom: 1rem; }
+    .modal .form-group { margin-bottom: 1rem; }
+    .modal label { display: block; margin-bottom: 0.3rem; font-weight: 600; font-size: 0.9rem; }
+    .modal input, .modal textarea, .modal select { width: 100%; padding: 0.6rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
+    .modal textarea { resize: vertical; min-height: 80px; }
+    .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem; }
+    .modal-actions button { padding: 0.6rem 1.5rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    .btn-cancel { background: #ddd; }
+    .btn-save { background: #25D366; color: white; }
+    .foto-preview { max-width: 200px; max-height: 150px; margin-top: 0.5rem; border-radius: 6px; }
+    .ai-result { background: #f8f9fa; padding: 1rem; border-radius: 6px; margin-top: 0.5rem; font-size: 0.85rem; }
+    .comprobante-img { max-width: 150px; max-height: 100px; border-radius: 4px; }
+    @media (max-width: 768px) { .stats-bar { flex-direction: column; } .main-content { padding: 1rem; } }
+  </style>
+</head>
+<body>
+  <div class="admin-header">
+    <h1>Panel de Administración</h1>
+    <div>
+      <span id="adminName" style="margin-right:1rem;"></span>
+      <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-card"><h3>Productos</h3><div class="number" id="statProductos">0</div></div>
+    <div class="stat-card"><h3>Ventas Totales</h3><div class="number" id="statVentas">0</div></div>
+    <div class="stat-card"><h3>Pendientes</h3><div class="number" id="statPendientes">0</div></div>
+    <div class="stat-card"><h3>Ingresos</h3><div class="number" id="statIngresos">Bs. 0</div></div>
+  </div>
+
+  <div class="main-content">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('productos')">Productos</button>
+      <button class="tab-btn" onclick="showTab('ventas')">Ventas</button>
+    </div>
+
+    <div id="tab-productos">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <h2 class="section-title">Productos</h2>
+        <button class="btn-sm btn-success" onclick="openAddProduct()" style="padding:0.6rem 1.2rem;font-size:0.9rem;">+ Agregar Producto</button>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead><tr><th>Foto</th><th>Nombre</th><th>Marca</th><th>Precio</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="productosTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-ventas" style="display:none;">
+      <h2 class="section-title">Ventas</h2>
+      <div class="table-container">
+        <table>
+          <thead><tr><th>#</th><th>Producto</th><th>Cliente</th><th>Monto</th><th>Banco</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="ventasTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Producto -->
+  <div class="modal-overlay" id="productModal">
+    <div class="modal">
+      <h2 id="modalTitle">Agregar Producto</h2>
+      <form id="productForm">
+        <input type="hidden" id="productoId">
+        <div class="form-group">
+          <label>Foto del producto</label>
+          <input type="file" id="productoFoto" accept="image/*" onchange="previewFoto(this)">
+          <img id="fotoPreview" class="foto-preview" style="display:none;">
+        </div>
+        <div class="form-group">
+          <button type="button" class="btn-sm btn-primary" onclick="detectarYBuscar()" id="btnDetectar">🔍 Detectar producto desde foto</button>
+          <div id="aiResult" class="ai-result" style="display:none;"></div>
+        </div>
+        <div class="form-group" id="buscarSection" style="display:none;">
+          <label>Buscar producto en web</label>
+          <div style="display:flex;gap:0.5rem;">
+            <input type="text" id="buscarQuery" placeholder="Escribe el nombre del producto..." style="flex:1;" onkeypress="if(event.key==='Enter'){event.preventDefault();buscarProductoWeb();}">
+            <button type="button" class="btn-sm btn-primary" onclick="buscarProductoWeb()">🔍 Buscar</button>
+          </div>
+        </div>
+        <div class="form-group"><label>Nombre *</label><input type="text" id="productoNombre" required></div>
+        <div class="form-group"><label>Marca</label><input type="text" id="productoMarca"></div>
+        <div class="form-group"><label>Categoría</label><input type="text" id="productoCategoria"></div>
+        <div class="form-group"><label>Color</label><input type="text" id="productoColor"></div>
+        <div class="form-group"><label>Material</label><input type="text" id="productoMaterial"></div>
+        <div class="form-group"><label>Descripción</label><textarea id="productoDescripcion"></textarea></div>
+        <div class="form-group"><label>Precio Original (Bs.)</label><input type="number" step="0.01" id="productoPrecioOriginal"></div>
+        <div class="form-group"><label>Precio de Venta (Bs.) *</label><input type="number" step="0.01" id="productoPrecioVenta" required></div>
+        <div class="form-group"><label>Fuente (tienda)</label><input type="text" id="productoFuente"></div>
+        <div class="form-group"><label>Link original</label><input type="url" id="productoLink"></div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="productoEstado">
+            <option value="borrador">Borrador</option>
+            <option value="publicado">Publicado</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" onclick="closeModal('productModal')">Cancelar</button>
+          <button type="submit" class="btn-save">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Venta -->
+  <div class="modal-overlay" id="ventaModal">
+    <div class="modal">
+      <h2>Detalle de Venta</h2>
+      <div id="ventaDetail"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('ventaModal')">Cerrar</button>
+        <button class="btn-success" id="btnAprobar" onclick="aprobarVenta()">Aprobar</button>
+        <button class="btn-danger" id="btnRechazar" onclick="rechazarVenta()">Rechazar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/admin.js"></script>
+</body>
+</html>
