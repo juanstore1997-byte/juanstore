@@ -120,12 +120,15 @@ async function searchAmazon(query) {
       }
     });
 
-    // Image - find the good image (from media-amazon.com, not grey-pixel)
+    // Image - find the actual product image (from media-amazon with /images/I/ path)
     let image = '';
     $(el).find('img').each((j, imgEl) => {
       const src = $(imgEl).attr('src') || '';
-      if (src.includes('media-amazon.com') && !image) {
-        image = src;
+      const dataSrc = $(imgEl).attr('data-src') || '';
+      // Must be from media-amazon and contain /images/I/ (real product images)
+      const imgUrl = dataSrc || src;
+      if (imgUrl.includes('media-amazon.com/images/I/') && !image) {
+        image = imgUrl;
       }
     });
 

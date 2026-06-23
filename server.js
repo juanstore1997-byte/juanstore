@@ -48,6 +48,12 @@ app.get('/api/proxy-image', async (req, res) => {
   if (!url || !url.startsWith('http')) {
     return res.status(400).json({ error: 'URL requerida' });
   }
+  // Solo permitir imágenes de Amazon y otros sitios conocidos
+  const allowedDomains = ['media-amazon.com', 'ssl-images-amazon.com', 'images-amazon.com'];
+  const isAllowed = allowedDomains.some(d => url.includes(d));
+  if (!isAllowed) {
+    return res.status(403).json({ error: 'Dominio no permitido' });
+  }
   try {
     const response = await fetch(url, {
       headers: {
@@ -55,6 +61,7 @@ app.get('/api/proxy-image', async (req, res) => {
         'Accept': 'image/*',
         'Referer': 'https://www.amazon.com/',
       },
+      redirect: 'follow',
       signal: AbortSignal.timeout(10000),
     });
     if (!response.ok) return res.status(response.status).send('Image fetch failed');
