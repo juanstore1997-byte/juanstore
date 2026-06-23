@@ -22,7 +22,7 @@ async function searchProduct(query) {
     } catch (e) { console.log('Google error:', e.message); }
   }
 
-  // 2. Amazon mobile scraping
+  // 2. Amazon mobile scraping (solo títulos, precios, links)
   try {
     const amazonResults = await searchAmazon(cleanQuery);
     for (const r of amazonResults) {
@@ -32,7 +32,19 @@ async function searchProduct(query) {
     console.log('Amazon:', amazonResults.length);
   } catch (e) { console.log('Amazon error:', e.message); }
 
-  // 3. Variaciones si hay pocos resultados
+  // 3. Agregar imágenes reales desde Bing para cada resultado
+  for (const r of results.slice(0, 5)) {
+    if (!r.image || r.image.includes('grey-pixel')) {
+      try {
+        const images = await searchBingImages(r.title);
+        if (images.length > 0) {
+          r.image = images[0];
+        }
+      } catch (e) { /* skip */ }
+    }
+  }
+
+  // 4. Variaciones si hay pocos resultados
   if (results.length < 3) {
     const variations = buildSearchVariations(cleanQuery);
     for (const v of variations) {
@@ -82,7 +94,7 @@ function buildSearchVariations(query) {
   return [...new Set(variations)];
 }
 
-// ========== AMAZON (mobile scraping) ==========
+// ========== AMAZON (solo títulos y links) ==========
 async function searchAmazon(query) {
   const url = `https://www.amazon.com/s?k=${encodeURIComponent(query)}&language=en_US`;
   const response = await fetch(url, {
@@ -104,14 +116,11 @@ async function searchAmazon(query) {
   $('[data-component-type="s-search-result"]').each((i, el) => {
     if (i >= 6) return false;
 
-    // Title
     const title = $(el).find('h2 span').text().trim();
     if (!title || title.length < 3) return;
 
-    // Price
     const price = $(el).find('.a-price .a-offscreen').first().text().trim();
 
-    // Link - find any link with /dp/ (product link)
     let link = '';
     $(el).find('a').each((j, aEl) => {
       const href = $(aEl).attr('href') || '';
@@ -120,29 +129,66 @@ async function searchAmazon(query) {
       }
     });
 
-    // Image - find the actual product image (from media-amazon with /images/I/ path)
-    let image = '';
-    $(el).find('img').each((j, imgEl) => {
-      const src = $(imgEl).attr('src') || '';
-      const dataSrc = $(imgEl).attr('data-src') || '';
-      // Must be from media-amazon and contain /images/I/ (real product images)
-      const imgUrl = dataSrc || src;
-      if (imgUrl.includes('media-amazon.com/images/I/') && !image) {
-        image = imgUrl;
-      }
-    });
-
+    // NO buscar imágenes aquí - usaremos Bing Images
     results.push({
       title: title.substring(0, 150),
       link,
       snippet: price ? `Precio: ${price}` : '',
-      image,
+      image: '', // Se llena después con Bing
       source: 'Amazon',
       store: 'Amazon',
     });
   });
 
   return results;
+}
+
+// ========== BING IMAGES ==========
+async function searchBingImages(query) {
+  try {
+    const url = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC3&first=1`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!response.ok) return [];
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    const images = [];
+
+    // Bing images - buscar en scripts JSON
+    $('a.iusc').each((i, el) => {
+      if (i >= 3) return false;
+      try {
+        const m = JSON.parse($(el).attr('m') || '{}');
+        if (m.murl && m.murl.startsWith('http')) {
+          images.push(m.murl);
+        }
+      } catch (e) { /* skip */ }
+    });
+
+    // Fallback: buscar img tags
+    if (images.length === 0) {
+      $('img.mimg').each((i, el) => {
+        if (i >= 3) return false;
+        const src = $(el).attr('src') || '';
+        if (src.startsWith('http') && !src.includes('bing.com') && !src.includes('microsoft')) {
+          images.push(src);
+        }
+      });
+    }
+
+    return images.slice(0, 3);
+  } catch (e) {
+    console.log('Bing Images error:', e.message);
+    return [];
+  }
 }
 
 // ========== GOOGLE CUSTOM SEARCH ==========

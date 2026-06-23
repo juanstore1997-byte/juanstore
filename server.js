@@ -48,8 +48,8 @@ app.get('/api/proxy-image', async (req, res) => {
   if (!url || !url.startsWith('http')) {
     return res.status(400).json({ error: 'URL requerida' });
   }
-  // Solo permitir imágenes de Amazon y otros sitios conocidos
-  const allowedDomains = ['media-amazon.com', 'ssl-images-amazon.com', 'images-amazon.com'];
+  // Solo permitir imágenes de sitios conocidos
+  const allowedDomains = ['media-amazon.com', 'ssl-images-amazon.com', 'images-amazon.com', 'bing.com', 'microsoft.com', 'th.bing.com'];
   const isAllowed = allowedDomains.some(d => url.includes(d));
   if (!isAllowed) {
     return res.status(403).json({ error: 'Dominio no permitido' });
