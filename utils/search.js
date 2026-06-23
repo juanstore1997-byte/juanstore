@@ -22,7 +22,7 @@ async function searchProduct(query) {
     } catch (e) { console.log('Google error:', e.message); }
   }
 
-  // 2. Amazon mobile scraping (solo títulos, precios, links)
+  // 2. Amazon mobile scraping
   try {
     const amazonResults = await searchAmazon(cleanQuery);
     for (const r of amazonResults) {
@@ -32,19 +32,7 @@ async function searchProduct(query) {
     console.log('Amazon:', amazonResults.length);
   } catch (e) { console.log('Amazon error:', e.message); }
 
-  // 3. Agregar imágenes reales desde Bing para cada resultado
-  for (const r of results.slice(0, 5)) {
-    if (!r.image || r.image.includes('grey-pixel')) {
-      try {
-        const images = await searchBingImages(r.title);
-        if (images.length > 0) {
-          r.image = images[0];
-        }
-      } catch (e) { /* skip */ }
-    }
-  }
-
-  // 4. Variaciones si hay pocos resultados
+  // 3. Variaciones si hay pocos resultados
   if (results.length < 3) {
     const variations = buildSearchVariations(cleanQuery);
     for (const v of variations) {
@@ -94,7 +82,7 @@ function buildSearchVariations(query) {
   return [...new Set(variations)];
 }
 
-// ========== AMAZON (solo títulos y links) ==========
+// ========== AMAZON ==========
 async function searchAmazon(query) {
   const url = `https://www.amazon.com/s?k=${encodeURIComponent(query)}&language=en_US`;
   const response = await fetch(url, {
@@ -122,73 +110,32 @@ async function searchAmazon(query) {
     const price = $(el).find('.a-price .a-offscreen').first().text().trim();
 
     let link = '';
+    let asin = '';
     $(el).find('a').each((j, aEl) => {
       const href = $(aEl).attr('href') || '';
       if (href.includes('/dp/') && !link) {
         link = href.startsWith('http') ? href : `https://www.amazon.com${href}`;
+        // Extraer ASIN del link
+        const asinMatch = href.match(/\/dp\/([A-Z0-9]{10})/);
+        if (asinMatch) asin = asinMatch[1];
       }
     });
 
-    // NO buscar imágenes aquí - usaremos Bing Images
+    // Construir imagen directamente con el ASIN
+    const image = asin ? `https://m.media-amazon.com/images/P/${asin}.01._SCLZZZZZZZ_SX300_.jpg` : '';
+
     results.push({
       title: title.substring(0, 150),
       link,
       snippet: price ? `Precio: ${price}` : '',
-      image: '', // Se llena después con Bing
+      image,
       source: 'Amazon',
       store: 'Amazon',
+      asin,
     });
   });
 
   return results;
-}
-
-// ========== BING IMAGES ==========
-async function searchBingImages(query) {
-  try {
-    const url = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC3&first=1`;
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (!response.ok) return [];
-
-    const html = await response.text();
-    const $ = cheerio.load(html);
-    const images = [];
-
-    // Bing images - buscar en scripts JSON
-    $('a.iusc').each((i, el) => {
-      if (i >= 3) return false;
-      try {
-        const m = JSON.parse($(el).attr('m') || '{}');
-        if (m.murl && m.murl.startsWith('http')) {
-          images.push(m.murl);
-        }
-      } catch (e) { /* skip */ }
-    });
-
-    // Fallback: buscar img tags
-    if (images.length === 0) {
-      $('img.mimg').each((i, el) => {
-        if (i >= 3) return false;
-        const src = $(el).attr('src') || '';
-        if (src.startsWith('http') && !src.includes('bing.com') && !src.includes('microsoft')) {
-          images.push(src);
-        }
-      });
-    }
-
-    return images.slice(0, 3);
-  } catch (e) {
-    console.log('Bing Images error:', e.message);
-    return [];
-  }
 }
 
 // ========== GOOGLE CUSTOM SEARCH ==========
@@ -224,9 +171,6 @@ function extractStore(url) {
   if (lower.includes('bestbuy.')) return 'Best Buy';
   if (lower.includes('target.')) return 'Target';
   if (lower.includes('etsy.')) return 'Etsy';
-  if (lower.includes('linio.')) return 'Linio';
-  if (lower.includes('falabella.')) return 'Falabella';
-  if (lower.includes('ripley.')) return 'Ripley';
   try {
     const hostname = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
     return hostname.replace('www.', '').split('.')[0];
