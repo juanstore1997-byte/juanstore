@@ -608,15 +608,17 @@ body {
 
 .product-detail-img {
   border-radius: var(--radius-xl);
-  overflow: hidden;
   background: var(--bg-section);
   position: relative;
 }
 
 .product-detail-img img {
   width: 100%;
-  aspect-ratio: 1;
   object-fit: cover;
+}
+
+.product-detail-img > img:first-child {
+  aspect-ratio: 1;
 }
 
 .product-detail-img .no-image {
