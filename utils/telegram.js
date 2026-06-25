@@ -43,14 +43,16 @@ async function notifyNewSale(product, venta, verificationResult) {
   const text = `🔔 ¡NUEVA VENTA!
 
 Producto: ${product.nombre}
-Precio: $${product.precio_venta} USD
+Precio: Bs. ${product.precio_venta}
 Cliente: ${venta.cliente_nombre || 'No especificado'}
 Teléfono: ${venta.cliente_telefono || 'No especificado'}
 CI: ${venta.cliente_ci || 'No especificado'}
 
-Banco: ${verificationResult?.banco || 'No detectado'}
-Monto: ${verificationResult?.monto_detectado || 'No detectado'}
-Válido: ${verificationResult?.es_valido ? '✅' : '❌'}
+Análisis OCR:
+🏦 Banco: ${verificationResult?.banco || 'No detectado'}
+💰 Monto detectado: Bs. ${verificationResult?.monto_detectado || 'No detectado'}
+✅ Válido: ${verificationResult?.es_valido ? 'SÍ' : 'NO'}
+📝 ${verificationResult?.observaciones || ''}
 
 Estado: Pendiente aprobación
 ID Venta: #${venta.id}`;
@@ -63,7 +65,7 @@ async function notifySaleApproved(venta, product) {
 
 Producto: ${product.nombre}
 Cliente: ${venta.cliente_nombre}
-Monto: $${venta.monto} USD
+Monto: Bs. ${venta.monto}
 ID: #${venta.id}`;
 
   return await sendTelegramMessage(text);

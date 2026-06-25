@@ -81,6 +81,8 @@ router.post('/comprobante/:ventaId', upload.single('comprobante'), async (req, r
 
     const esValido = verification.es_valido ? 1 : 0;
     const banco = verification.banco || 'No detectado';
+    const montoDetectado = verification.monto_detectado || 0;
+    const observaciones = verification.observaciones || '';
 
     const uploadDir = path.join(__dirname, '..', 'public', 'uploads');
     const filename = 'comprobante-' + Date.now() + '-' + req.file.originalname.replace(/\s+/g, '-');
@@ -92,9 +94,9 @@ router.post('/comprobante/:ventaId', upload.single('comprobante'), async (req, r
 
     db.prepare(`
       UPDATE ventas
-      SET comprobante_verificado = ?, banco = ?, estado = ?, updated_at = CURRENT_TIMESTAMP
+      SET comprobante_verificado = ?, banco = ?, monto_detectado = ?, observaciones_verificacion = ?, estado = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(esValido, banco, esValido ? 'verificado' : 'pendiente', req.params.ventaId);
+    `).run(esValido, banco, montoDetectado, observaciones, esValido ? 'verificado' : 'pendiente', req.params.ventaId);
 
     const updatedVenta = db.prepare('SELECT * FROM ventas WHERE id = ?').get(req.params.ventaId);
 

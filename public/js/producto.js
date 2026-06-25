@@ -186,6 +186,19 @@ async function showPurchaseFlow() {
     let statusHtml = '';
     if (venta.comprobante_url) {
       const statusClass = venta.estado === 'aprobada' ? 'aprobada' : venta.estado === 'rechazada' ? 'rechazada' : venta.estado === 'verificado' ? 'verificado' : 'pendiente';
+      
+      let verificacionHtml = '';
+      if (venta.banco || venta.monto_detectado) {
+        verificacionHtml = `
+          <div style="margin-top:0.75rem;padding:0.75rem;background:rgba(0,0,0,0.03);border-radius:var(--radius);font-size:0.85rem;">
+            <div style="font-weight:600;margin-bottom:0.5rem;color:var(--text-secondary);">Resultados del análisis:</div>
+            ${venta.banco ? `<div>🏦 Banco: <strong>${venta.banco}</strong></div>` : ''}
+            ${venta.monto_detectado ? `<div>💰 Monto detectado: <strong>Bs. ${venta.monto_detectado}</strong></div>` : ''}
+            ${venta.observaciones_verificacion ? `<div style="margin-top:0.5rem;color:var(--text-muted);font-style:italic;">${venta.observaciones_verificacion}</div>` : ''}
+          </div>
+        `;
+      }
+
       statusHtml = `
         <div style="margin-top:1.5rem;">
           <h3 style="font-family:var(--font-display);font-weight:700;margin-bottom:1rem;">Estado de tu compra</h3>
@@ -194,10 +207,10 @@ async function showPurchaseFlow() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <div>
               <strong>Estado: ${venta.estado.toUpperCase()}</strong>
-              ${venta.banco ? `<p style="margin-top:0.25rem;font-size:0.85rem;">Banco detectado: ${venta.banco}</p>` : ''}
               ${venta.estado === 'rechazada' && venta.motivo_rechazo ? `<p style="margin-top:0.25rem;font-size:0.85rem;">Motivo: ${venta.motivo_rechazo}</p>` : ''}
             </div>
           </div>
+          ${verificacionHtml}
         </div>
       `;
     }

@@ -478,6 +478,7 @@ async function loadVentas() {
         <td>${v.producto_nombre || '—'}</td>
         <td>${v.cliente_nombre || '—'}</td>
         <td>Bs. ${v.monto}</td>
+        <td>${v.monto_detectado ? `Bs. ${v.monto_detectado}` : '—'}</td>
         <td>${v.banco || '—'}</td>
         <td><span class="badge badge-${v.estado === 'aprobada' ? 'success' : v.estado === 'rechazada' ? 'danger' : 'warning'}">${v.estado}</span></td>
         <td><button class="btn-sm btn-primary" onclick="viewVenta(${v.id})">Ver</button></td>
@@ -500,6 +501,8 @@ async function viewVenta(id) {
     <p><strong>CI:</strong> ${v.cliente_ci || '—'}</p>
     <p><strong>Monto:</strong> Bs. ${v.monto}</p>
     <p><strong>Banco:</strong> ${v.banco || 'No detectado'}</p>
+    ${v.monto_detectado ? `<p><strong>Monto detectado (OCR):</strong> Bs. ${v.monto_detectado}</p>` : ''}
+    ${v.observaciones_verificacion ? `<p style="padding:0.5rem;background:rgba(0,0,0,0.03);border-radius:var(--radius);font-size:0.85rem;"><strong>Análisis:</strong> ${v.observaciones_verificacion}</p>` : ''}
     <p><strong>Estado:</strong> ${v.estado}</p>
     ${v.comprobante_url ? `<p><strong>Comprobante:</strong><br><img src="${v.comprobante_url}" class="comprobante-img"></p>` : '<p>Sin comprobante</p>'}
   `;

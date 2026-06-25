@@ -1,132 +1,124 @@
-const HF_TOKEN = process.env.HUGGINGFACE_TOKEN;
+const Tesseract = require('tesseract.js');
 
-const HF_API = 'https://api-inference.huggingface.co/models';
+const BANCOS_BOLIVIA = [
+  { nombre: 'BCP', patrones: ['bcp', 'banco de credito', 'credito de bolivia', 'credito'] },
+  { nombre: 'BNB', patrones: ['bnb', 'banco nacional de bolivia', 'nacional de bolivia'] },
+  { nombre: 'BOA', patrones: ['boa', 'banco de amazonia', 'banco amazonia'] },
+  { nombre: 'BUN', patrones: ['bun', 'banco union', 'unión'] },
+  { nombre: 'BIS', patrones: ['bis', 'banco industrial', 'industrial'] },
+  { nombre: 'FIE', patrones: ['fie', 'fie'] },
+  { nombre: 'UNI', patrones: ['uni', 'union', 'unión'] },
+  { nombre: 'Mercado Pago', patrones: ['mercado pago', 'mercadopago'] },
+  { nombre: 'Tigo Money', patrones: ['tigo', 'tigo money'] },
+  { nombre: 'eVo', patrones: ['evo', 'evobo'] },
+];
 
-async function queryHF(model, imageBuffer) {
-  const response = await fetch(`${HF_API}/${model}`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${HF_TOKEN}`,
-    },
-    body: imageBuffer,
-  });
-
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`HF API error: ${response.status} - ${err}`);
+function detectarBanco(textoOcr) {
+  const lower = textoOcr.toLowerCase();
+  for (const banco of BANCOS_BOLIVIA) {
+    for (const patron of banco.patrones) {
+      if (lower.includes(patron)) return banco.nombre;
+    }
   }
-
-  return await response.json();
+  return 'No detectado';
 }
 
-async function analyzeProductImage(imageBuffer) {
-  const base64Image = imageBuffer.toString('base64');
+function extraerMonto(textoOcr) {
+  const lineas = textoOcr.split('\n');
+  const montos = [];
 
-  try {
-    // Paso 1: Obtener descripción de la imagen con BLIP
-    const captionResult = await queryHF('Salesforce/blip-image-captioning-large', imageBuffer);
-    const caption = Array.isArray(captionResult)
-      ? captionResult[0]?.generated_text || ''
-      : captionResult?.generated_text || '';
+  for (const linea of lineas) {
+    const lower = linea.toLowerCase();
 
-    console.log('Caption de imagen:', caption);
+    if (lower.includes('pago') || lower.includes('monto') || lower.includes('total') || lower.includes('importe') || lower.includes('bs') || lower.includes('bs.')) {
+      const coincidencias = linea.match(/(\d+[\.,]\d{2})/g);
+      if (coincidencias) {
+        for (const c of coincidencias) {
+          const monto = parseFloat(c.replace(',', '.'));
+          if (monto > 0 && monto < 100000) montos.push(monto);
+        }
+      }
+    }
 
-    // Paso 2: Extraer información del producto desde el caption
-    const result = {
-      marca: extraerMarca(caption),
-      nombre: caption || 'Producto sin nombre',
-      categoria: extraerCategoria(caption),
-      color: extraerColor(caption),
-      material: '',
-      caracteristicas: caption ? [caption] : [],
-      fuente: 'Análisis automático',
-    };
-
-    return result;
-  } catch (e) {
-    console.error('Error HuggingFace:', e.message || e);
-    throw new Error('Error de IA: ' + (e.message || 'Desconocido'));
+    const todosMontos = linea.match(/(\d+[\.,]\d{2})/g);
+    if (todosMontos) {
+      for (const c of todosMontos) {
+        const monto = parseFloat(c.replace(',', '.'));
+        if (monto > 0 && monto < 100000) montos.push(monto);
+      }
+    }
   }
+
+  if (montos.length === 0) return 0;
+  return Math.max(...montos);
 }
 
-function extraerMarca(text) {
-  const marcas = [
-    'nike', 'adidas', 'puma', 'reebok', 'new balance', 'converse', 'vans',
-    'zara', 'h&m', 'levi', 'gap', 'under armour', 'fila', 'asics',
-    'samsung', 'apple', 'sony', 'lg', 'xiaomi', 'huawei',
-    'louis vuitton', 'gucci', 'prada', 'chanel', 'hermes',
-    'xiaomi', 'dell', 'hp', 'lenovo', 'asus', 'acer',
+function extraerFecha(textoOcr) {
+  const patrones = [
+    /(\d{2})[\/\-](\d{2})[\/\-](\d{4})/,
+    /(\d{4})[\/\-](\d{2})[\/\-](\d{2})/,
   ];
-  const lower = text.toLowerCase();
-  for (const m of marcas) {
-    if (lower.includes(m)) return m.charAt(0).toUpperCase() + m.slice(1);
-  }
-  return '';
-}
-
-function extraerCategoria(text) {
-  const lower = text.toLowerCase();
-  if (lower.includes('shirt') || lower.includes('camiseta') || lower.includes('t-shirt')) return 'Ropa';
-  if (lower.includes('shoe') || lower.includes('zapatilla') || lower.includes('sneaker')) return 'Calzado';
-  if (lower.includes('bag') || lower.includes('bolsa') || lower.includes('mochila')) return 'Accesorios';
-  if (lower.includes('phone') || lower.includes('celular') || lower.includes('smartphone')) return 'Electrónica';
-  if (lower.includes('watch') || lower.includes('reloj')) return 'Accesorios';
-  if (lower.includes('pant') || lower.includes('jean') || lower.includes('trouser')) return 'Ropa';
-  if (lower.includes('jacket') || lower.includes('coat') || lower.includes('chaqueta')) return 'Ropa';
-  if (lower.includes('hat') || lower.includes('gorra') || lower.includes('sombrero')) return 'Accesorios';
-  if (lower.includes('sunglasses') || lower.includes('lentes')) return 'Accesorios';
-  if (lower.includes('toy') || lower.includes('juguete')) return 'Juguetes';
-  if (lower.includes('book') || lower.includes('libro')) return 'Libros';
-  if (lower.includes('laptop') || lower.includes('computadora')) return 'Electrónica';
-  return 'General';
-}
-
-function extraerColor(text) {
-  const colores = [
-    'rojo', 'red', 'azul', 'blue', 'verde', 'green', 'negro', 'black',
-    'blanco', 'white', 'amarillo', 'yellow', 'naranja', 'orange', 'morado', 'purple',
-    'rosa', 'pink', 'gris', 'gray', 'grey', 'marrón', 'brown', 'beige', 'crema',
-    'dorado', 'gold', 'plateado', 'silver',
-  ];
-  const lower = text.toLowerCase();
-  for (const c of colores) {
-    if (lower.includes(c)) {
-      const traducciones = {
-        red: 'Rojo', blue: 'Azul', green: 'Verde', black: 'Negro',
-        white: 'Blanco', yellow: 'Amarillo', orange: 'Naranja', purple: 'Morado',
-        pink: 'Rosa', gray: 'Gris', grey: 'Gris', brown: 'Marrón',
-        gold: 'Dorado', silver: 'Plateado',
-      };
-      return traducciones[c] || c.charAt(0).toUpperCase() + c.slice(1);
+  for (const patron of patrones) {
+    const match = textoOcr.match(patron);
+    if (match) {
+      if (match[3] && match[3].length === 4) return `${match[1]}/${match[2]}/${match[3]}`;
+      if (match[1] && match[1].length === 4) return `${match[3]}/${match[2]}/${match[1]}`;
     }
   }
   return '';
 }
 
 async function verifyPaymentReceipt(imageBuffer, expectedAmount) {
-  const base64Image = imageBuffer.toString('base64');
-
   try {
-    const captionResult = await queryHF('Salesforce/blip-image-captioning-large', imageBuffer);
-    const caption = Array.isArray(captionResult)
-      ? captionResult[0]?.generated_text || ''
-      : captionResult?.generated_text || '';
+    const { data: { text } } = await Tesseract.recognize(imageBuffer, 'spa+eng', {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          console.log(`OCR Progress: ${Math.round(m.progress * 100)}%`);
+        }
+      }
+    });
 
-    const lower = caption.toLowerCase();
-    const esBanco = lower.includes('bank') || lower.includes('banco') || lower.includes('receipt') || lower.includes('comprobante') || lower.includes('payment') || lower.includes('pago');
-    const tieneMonto = lower.includes(expectedAmount.toString()) || lower.includes('$');
+    console.log('=== OCR RESULTADO ===');
+    console.log(text);
+    console.log('=== FIN OCR ===');
+
+    const banco = detectarBanco(text);
+    const montoDetectado = extraerMonto(text);
+    const fecha = extraerFecha(text);
+
+    const montoEsValido = montoDetectado > 0 && Math.abs(montoDetectado - expectedAmount) < 1;
+    const bancoDetectado = banco !== 'No detectado';
+    const esValido = montoEsValido && bancoDetectado;
+
+    let observaciones = '';
+    if (!bancoDetectado) observaciones += 'No se detectó banco. ';
+    if (montoDetectado === 0) observaciones += 'No se pudo leer el monto. ';
+    else if (!montoEsValido) observaciones += `Monto detectado: Bs. ${montoDetectado}, esperado: Bs. ${expectedAmount}. `;
+    if (!fecha) observaciones += 'No se pudo leer la fecha. ';
 
     return {
-      banco: esBanco ? 'Detectado en imagen' : 'No detectado',
-      monto_detectado: tieneMonto ? expectedAmount : 0,
-      fecha: new Date().toISOString().split('T')[0],
-      es_valido: esBanco,
-      observaciones: caption,
+      banco,
+      monto_detectado: montoDetectado,
+      fecha,
+      monto_esperado: expectedAmount,
+      monto_es_valido: montoEsValido,
+      es_valido: esValido,
+      observaciones: observaciones.trim() || 'Comprobante verificado correctamente',
+      texto_ocr: text.substring(0, 500),
     };
   } catch (e) {
-    console.error('Error verificando comprobante:', e.message || e);
-    return { banco: '', monto_detectado: 0, fecha: '', es_valido: false, observaciones: '' };
+    console.error('Error en OCR:', e.message || e);
+    return {
+      banco: 'Error',
+      monto_detectado: 0,
+      fecha: '',
+      monto_esperado: expectedAmount,
+      monto_es_valido: false,
+      es_valido: false,
+      observaciones: 'Error al procesar imagen: ' + (e.message || 'Desconocido'),
+      texto_ocr: '',
+    };
   }
 }
 
-module.exports = { analyzeProductImage, verifyPaymentReceipt };
+module.exports = { verifyPaymentReceipt };
