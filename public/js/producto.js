@@ -107,16 +107,14 @@ async function showProduct() {
 }
 
 function startBuy() {
-  // Show a modal-like prompt
   const nombre = prompt('Tu nombre completo:');
   if (!nombre) return;
   const telefono = prompt('Tu teléfono:');
-  const ci = prompt('Tu CI:');
 
   fetch('/api/payment/comprar', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ producto_id: parseInt(productId), cliente_nombre: nombre, cliente_telefono: telefono, cliente_ci: ci })
+    body: JSON.stringify({ producto_id: parseInt(productId), cliente_nombre: nombre, cliente_telefono: telefono })
   })
   .then(r => r.json())
   .then(venta => {

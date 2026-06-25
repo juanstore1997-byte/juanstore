@@ -498,7 +498,6 @@ async function viewVenta(id) {
     <p><strong>Producto:</strong> ${v.producto_nombre}</p>
     <p><strong>Cliente:</strong> ${v.cliente_nombre || '—'}</p>
     <p><strong>Teléfono:</strong> ${v.cliente_telefono || '—'}</p>
-    <p><strong>CI:</strong> ${v.cliente_ci || '—'}</p>
     <p><strong>Monto:</strong> Bs. ${v.monto}</p>
     <p><strong>Banco:</strong> ${v.banco || 'No detectado'}</p>
     ${v.monto_detectado ? `<p><strong>Monto detectado (OCR):</strong> Bs. ${v.monto_detectado}</p>` : ''}
