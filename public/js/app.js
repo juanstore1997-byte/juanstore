@@ -94,11 +94,14 @@ function renderProducts(productos) {
       <div class="producto-card-img">
         ${p.foto_url
           ? `<img src="${p.foto_url}" alt="${p.nombre}" loading="lazy">`
-          : `<div class="no-image">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              <span>Sin imagen</span>
-            </div>`
+          : p.foto_referencia
+            ? `<img src="/api/proxy-image?url=${encodeURIComponent(p.foto_referencia)}" alt="${p.nombre}" loading="lazy">`
+            : `<div class="no-image">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <span>Sin imagen</span>
+              </div>`
         }
+        ${p.foto_referencia ? '<span class="producto-card-badge" style="background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);">📷 Ref</span>' : ''}
         ${p.estado === 'publicado' ? '<span class="producto-card-badge">Nuevo</span>' : ''}
       </div>
       <div class="producto-card-body">
