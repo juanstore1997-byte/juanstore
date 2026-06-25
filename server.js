@@ -33,6 +33,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(uploadsDir));
 
+// Health check para UptimeRobot (evitar sleep en Render free tier)
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
