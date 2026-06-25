@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const Tesseract = require('tesseract.js');
 const { searchProduct } = require('../utils/search');
-const { translateProduct, searchProductImages } = require('../utils/translate');
+const { translateProduct } = require('../utils/translate');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
@@ -337,22 +337,14 @@ router.post('/analyze-photo', authMiddleware, upload.single('foto'), async (req,
       console.log('Resultados:', resultados.length);
     }
 
-    // Traducir resultados al español y buscar imágenes
+    // Traducir resultados (SIN imágenes automáticas)
     const translatedResults = [];
     for (const r of resultados.slice(0, 5)) {
       try {
         const translated = await translateProduct(r);
-        
-        // Buscar imagen del producto
-        let images = [];
-        if (translated.title) {
-          images = await searchProductImages(translated.title);
-        }
-        
         translatedResults.push({
           ...translated,
-          image: images[0] || translated.image || '',
-          images: images.slice(0, 3),
+          image: '', // sin imágenes — se obtienen a demanda desde la URL del producto
           originalTitle: r.title,
           originalSnippet: r.snippet,
         });
@@ -392,22 +384,14 @@ router.post('/search-product', authMiddleware, async (req, res) => {
   try {
     const results = await searchProduct(query);
     
-    // Traducir y buscar imágenes para cada resultado
+    // Traducir resultados (SIN imágenes — se obtienen a demanda)
     const translatedResults = [];
     for (const r of (results.results || []).slice(0, 6)) {
       try {
         const translated = await translateProduct(r);
-        
-        // Buscar imagen del producto
-        let images = [];
-        if (translated.title) {
-          images = await searchProductImages(translated.title);
-        }
-        
         translatedResults.push({
           ...translated,
-          image: images[0] || translated.image || '',
-          images: images.slice(0, 3),
+          image: '', // sin imágenes automáticas
           originalTitle: r.title,
           originalSnippet: r.snippet,
         });
@@ -420,6 +404,22 @@ router.post('/search-product', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Error en búsqueda:', err);
     res.status(500).json({ error: 'Error realizando búsqueda' });
+  }
+});
+
+// Endpoint a demanda: obtiene la imagen (og:image) de una página de producto
+router.post('/fetch-product-image', authMiddleware, async (req, res) => {
+  const { url } = req.body;
+  if (!url) {
+    return res.status(400).json({ error: 'URL requerida' });
+  }
+  try {
+    const { fetchProductImage } = require('../utils/search');
+    const image = await fetchProductImage(url);
+    res.json({ image, url });
+  } catch (err) {
+    console.error('Error obteniendo imagen:', err);
+    res.json({ image: '', url, error: err.message });
   }
 });
 

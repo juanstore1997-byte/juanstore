@@ -146,7 +146,6 @@ function seleccionarResultado(el) {
   const source = el.dataset.source || '';
   const link = el.dataset.link || '';
   const store = el.dataset.store || '';
-  const image = el.dataset.image || '';
 
   // Enlaces a tiendas: abrir en nueva pestaña
   if (source.includes('-link')) {
@@ -171,16 +170,8 @@ function seleccionarResultado(el) {
   if (link) document.getElementById('productoLink').value = link;
   if (store) document.getElementById('productoFuente').value = store;
 
-  // Llenar foto de referencia con proxy
-  if (image) {
-    const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(image)}`;
-    try {
-      const fp = document.getElementById('fotoReferencia');
-      fp.src = proxyUrl;
-      fp.style.display = 'block';
-      document.getElementById('productoFotoReferencia').value = image;
-    } catch (e) { /* skip */ }
-  }
+  // NO cargar imagen automática — el usuario presiona "Obtener" o pega URL manualmente
+  showResult(`<strong style="color:green;">✅ Seleccionado:</strong> ${nombreLimpio}<br><small>Presiona <strong>"🔄 Obtener"</strong> para cargar la imagen desde el enlace del producto, o pega la URL manualmente.</small>`);
 
   // Intentar extraer marca del título
   const marcas = nombre.match(/(Lilicrops|Philco|Oster|Samsung|Apple|Xiaomi|Sony|LG|Bosch|Kenwood|Black.?Decker|Hamilton|Cuisinart|Ninja|KitchenAid|Truper|Stanley|Dewalt|Milwaukee|Craftsman|Anker|Baseus|Logitech|Corsair|Kingston|SanDisk|TP-Link|Huawei|Canon|Nikon|GoPro|DJI|Vinci|Breville|Cuisinart|Luukonde|LUUKMONDE|Elite Gourmet|BLACK\+DECKER|OVENTE|ASTRALSHIP)/i);
@@ -279,6 +270,55 @@ function buscarConSugerencia(sugerencia) {
   buscarProductoWeb();
 }
 
+// Obtener imagen desde el enlace del producto (og:image)
+async function fetchImageFromLink() {
+  const link = document.getElementById('productoLink').value;
+  if (!link) { alert('Primero selecciona un producto (debe tener enlace)'); return; }
+  
+  const btn = event?.target || document.querySelector('.btn-sm.btn-primary[onclick*="fetchImageFromLink"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+  
+  try {
+    const res = await fetch(`${API}/api/recognition/fetch-product-image`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: link })
+    });
+    const data = await res.json();
+    
+    if (data.image) {
+      document.getElementById('productoFotoReferencia').value = data.image;
+      previewRefUrl(data.image);
+      showResult('✅ Imagen de referencia cargada desde la tienda');
+    } else {
+      alert('No se pudo obtener la imagen automáticamente. Visita el enlace, copia la URL de la imagen y pégala manualmente.');
+    }
+  } catch (err) {
+    alert('Error al obtener imagen: ' + err.message);
+  }
+  
+  if (btn) { btn.disabled = false; btn.textContent = '🔄 Obtener'; }
+}
+
+// Previsualizar URL de imagen pegada manualmente
+function previewRefUrl(url) {
+  const img = document.getElementById('fotoReferencia');
+  const placeholder = document.getElementById('refPlaceholder');
+  const input = document.getElementById('productoFotoReferencia');
+  
+  if (!url) {
+    img.style.display = 'none';
+    placeholder.style.display = 'flex';
+    return;
+  }
+  
+  const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
+  img.src = proxyUrl;
+  img.style.display = 'inline-block';
+  placeholder.style.display = 'none';
+  input.value = url;
+}
+
 // ============================================
 // PRODUCTS CRUD
 // ============================================
@@ -311,6 +351,7 @@ function openAddProduct() {
   document.getElementById('productoId').value = '';
   document.getElementById('fotoPreview').style.display = 'none';
   document.getElementById('fotoReferencia').style.display = 'none';
+  document.getElementById('refPlaceholder').style.display = 'flex';
   document.getElementById('productoFotoReferencia').value = '';
   document.getElementById('aiResult').style.display = 'none';
   document.getElementById('buscarQuery').value = '';
@@ -343,11 +384,10 @@ async function editProduct(id) {
   }
   // Foto de referencia
   if (p.foto_referencia) {
-    document.getElementById('fotoReferencia').src = `/api/proxy-image?url=${encodeURIComponent(p.foto_referencia)}`;
-    document.getElementById('fotoReferencia').style.display = 'block';
-    document.getElementById('productoFotoReferencia').value = p.foto_referencia;
+    previewRefUrl(p.foto_referencia);
   } else {
     document.getElementById('fotoReferencia').style.display = 'none';
+    document.getElementById('refPlaceholder').style.display = 'flex';
     document.getElementById('productoFotoReferencia').value = '';
   }
   document.getElementById('productModal').classList.add('active');

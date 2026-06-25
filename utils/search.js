@@ -19,7 +19,7 @@ async function searchProduct(query) {
     } catch (e) { console.log('Google error:', e.message); }
   }
 
-  // 2. Amazon search (solo títulos y links)
+  // 2. Amazon search (solo títulos, precios y links — sin imágenes)
   try {
     const amazonResults = await searchAmazon(cleanQuery);
     for (const r of amazonResults) {
@@ -28,15 +28,7 @@ async function searchProduct(query) {
     }
   } catch (e) { console.log('Amazon error:', e.message); }
 
-  // 3. Obtener imagen REAL de cada producto (top 4)
-  const toFetch = results.filter(r => r.link && !r.image).slice(0, 4);
-  await Promise.all(toFetch.map(async (r) => {
-    try {
-      r.image = await getProductImage(r.link);
-    } catch (e) { /* skip */ }
-  }));
-
-  // 4. Variaciones
+  // 3. Variaciones si pocos resultados
   if (results.length < 3) {
     const variations = buildSearchVariations(cleanQuery);
     for (const v of variations) {
@@ -51,47 +43,66 @@ async function searchProduct(query) {
     }
   }
 
-  console.log('Total:', results.length);
+  console.log('Total resultados:', results.length);
   return { results: results.slice(0, 8), total: results.length };
 }
 
-async function getProductImage(productUrl) {
-  const response = await fetch(productUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15',
-      'Accept': 'text/html',
-      'Accept-Language': 'en-US,en;q=0.9',
-    },
-    signal: AbortSignal.timeout(10000),
-    redirect: 'follow',
-  });
-  if (!response.ok) return '';
-  const html = await response.text();
-  const $ = cheerio.load(html);
+// Endpoint para obtener la imagen real desde una página de producto
+async function fetchProductImage(productUrl) {
+  if (!productUrl) return '';
+  try {
+    const response = await fetch(productUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      signal: AbortSignal.timeout(10000),
+      redirect: 'follow',
+    });
+    const html = await response.text();
+    const $ = cheerio.load(html);
 
-  // 1. og:image
-  const og = $('meta[property="og:image"]').attr('content');
-  if (og && og.startsWith('http') && !og.includes('grey-pixel')) return og;
+    // og:image
+    const og = $('meta[property="og:image"]').attr('content');
+    if (og && og.startsWith('http') && !og.includes('grey-pixel')) return og;
 
-  // 2. landingImage
-  const landing = $('#landingImage').attr('src');
-  if (landing && landing.startsWith('http') && !landing.includes('grey-pixel')) return landing;
+    // product image selectors for Amazon
+    const imgSelectors = [
+      '#landingImage', '#imgBlkFront', '#imgTagWrapperId img',
+      '.a-dynamic-image', '#main-image', '.product-image img',
+      'img[data-old-hires]',
+    ];
+    for (const sel of imgSelectors) {
+      const src = $(sel).first().attr('src');
+      if (src && src.startsWith('http') && !src.includes('grey-pixel')) return src;
+    }
 
-  // 3. data-old-hires
-  const hires = $('#landingImage').attr('data-old-hires');
-  if (hires && hires.startsWith('http')) return hires;
+    // data-dynamic-image (JSON)
+    const dynamic = $('#landingImage').attr('data-dynamic-image') || $('#imgBlkFront').attr('data-dynamic-image');
+    if (dynamic) {
+      try {
+        const imgs = JSON.parse(dynamic);
+        const urls = Object.keys(imgs);
+        if (urls.length > 0) return urls[urls.length - 1];
+      } catch (e) { /* skip */ }
+    }
 
-  // 4. data-dynamic-image (JSON con URLs)
-  const dynamic = $('#landingImage').attr('data-dynamic-image');
-  if (dynamic) {
-    try {
-      const imgs = JSON.parse(dynamic);
-      const urls = Object.keys(imgs);
-      if (urls.length > 0) return urls[urls.length - 1]; // la más grande
-    } catch (e) { /* skip */ }
+    // Any media-amazon image
+    let found = '';
+    $('img').each((i, el) => {
+      const src = $(el).attr('src') || '';
+      if (src.includes('media-amazon.com/images/I/') && !src.includes('grey-pixel') && !found) {
+        found = src;
+      }
+    });
+    if (found) return found;
+
+    return '';
+  } catch (e) {
+    console.log('fetchProductImage error:', e.message);
+    return '';
   }
-
-  return '';
 }
 
 function cleanOCRQuery(text) {
@@ -167,4 +178,4 @@ function extractStore(url) {
   try { return new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace('www.', '').split('.')[0]; } catch (e) { return ''; }
 }
 
-module.exports = { searchProduct };
+module.exports = { searchProduct, fetchProductImage };

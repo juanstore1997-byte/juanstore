@@ -111,9 +111,22 @@
           <img id="fotoPreview" class="foto-preview" style="display:none;">
         </div>
         <div class="form-group">
-          <label> Foto de referencia (de tienda web)</label>
-          <img id="fotoReferencia" class="foto-preview" style="display:none;">
-          <input type="hidden" id="productoFotoReferencia">
+          <label>📷 Foto de referencia (de tienda web)</label>
+          <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+            <input type="url" id="productoFotoReferencia" placeholder="Pega la URL de la imagen aquí (ej: https://m.media-amazon.com/images/I/...jpg)" style="flex:1;" oninput="previewRefUrl(this.value)">
+            <button type="button" class="btn-sm btn-primary" onclick="fetchImageFromLink()" style="white-space:nowrap;">🔄 Obtener</button>
+          </div>
+          <div style="position:relative;display:inline-block;">
+            <img id="fotoReferencia" class="foto-preview" style="display:none;">
+            <div id="refPlaceholder" style="width:200px;height:150px;background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#4caf50;text-align:center;padding:1rem;border:2px dashed #a5d6a7;">
+              <span style="font-size:2rem;">🖼️</span>
+              <span style="font-size:0.85rem;margin-top:0.5rem;">Sin imagen de referencia</span>
+              <span style="font-size:0.75rem;color:#81c784;">Pega URL o presiona "Obtener"</span>
+            </div>
+          </div>
+          <small style="color:#999;display:block;margin-top:0.3rem;">
+            💡 Sugerencia: Busca el producto en Amazon, abre la página, haz clic derecho en la imagen y "Copiar dirección de imagen", luego pégala arriba.
+          </small>
         </div>
         <div class="form-group" id="buscarSection">
           <label>🔍 Buscar producto en web</label>
