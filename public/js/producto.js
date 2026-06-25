@@ -59,7 +59,7 @@ async function showProduct() {
             ${p.foto_referencia ? `
               <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border-light);">
                 <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.4rem;font-weight:600;">Referencia original</div>
-                <img src="/api/proxy-image?url=${encodeURIComponent(p.foto_referencia)}" alt="Referencia" style="width:100%;max-height:200px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--border-light);">
+                <img src="/api/proxy-image?url=${encodeURIComponent(p.foto_referencia)}" alt="Referencia" style="width:100%;border-radius:var(--radius);border:1px solid var(--border-light);">
               </div>
             ` : ''}
           </div>
