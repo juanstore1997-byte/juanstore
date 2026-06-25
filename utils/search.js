@@ -10,7 +10,7 @@ async function searchProduct(query) {
   const results = [];
   const seen = new Set();
 
-  // 1. Google Custom Search (si hay API key)
+  // 1. Google Custom Search
   if (process.env.GOOGLE_SEARCH_API_KEY && !process.env.GOOGLE_SEARCH_API_KEY.startsWith('tu_')) {
     try {
       const googleResults = await searchGoogleCustom(cleanQuery);
@@ -22,7 +22,7 @@ async function searchProduct(query) {
     } catch (e) { console.log('Google error:', e.message); }
   }
 
-  // 2. Amazon mobile scraping
+  // 2. Amazon scraping con imágenes
   try {
     const amazonResults = await searchAmazon(cleanQuery);
     for (const r of amazonResults) {
@@ -32,7 +32,7 @@ async function searchProduct(query) {
     console.log('Amazon:', amazonResults.length);
   } catch (e) { console.log('Amazon error:', e.message); }
 
-  // 3. Variaciones si hay pocos resultados
+  // 3. Variaciones si hay pocos
   if (results.length < 3) {
     const variations = buildSearchVariations(cleanQuery);
     for (const v of variations) {
@@ -64,21 +64,15 @@ function cleanOCRQuery(text) {
 function buildSearchVariations(query) {
   const variations = [];
   const words = query.split(' ').filter(w => w.length > 1);
-
   const modelMatch = query.match(/[A-Z]-?\d{2,5}/i);
   if (modelMatch) {
     variations.push(modelMatch[0]);
     variations.push(`${modelMatch[0]} juicer`);
   }
-
-  if (words.length > 3) {
-    variations.push(words.slice(0, 3).join(' '));
-  }
-
+  if (words.length > 3) variations.push(words.slice(0, 3).join(' '));
   const stopWords = ['product', 'buy', 'price', 'store', 'online', 'shop', 'the', 'a', 'an'];
   const simplified = words.filter(w => !stopWords.includes(w.toLowerCase())).join(' ');
   if (simplified !== query) variations.push(simplified);
-
   return [...new Set(variations)];
 }
 
@@ -110,19 +104,54 @@ async function searchAmazon(query) {
     const price = $(el).find('.a-price .a-offscreen').first().text().trim();
 
     let link = '';
-    let asin = '';
     $(el).find('a').each((j, aEl) => {
       const href = $(aEl).attr('href') || '';
       if (href.includes('/dp/') && !link) {
         link = href.startsWith('http') ? href : `https://www.amazon.com${href}`;
-        // Extraer ASIN del link
-        const asinMatch = href.match(/\/dp\/([A-Z0-9]{10})/);
-        if (asinMatch) asin = asinMatch[1];
       }
     });
 
-    // Construir imagen directamente con el ASIN
-    const image = asin ? `https://m.media-amazon.com/images/P/${asin}.01._SCLZZZZZZZ_SX300_.jpg` : '';
+    // Buscar imagen real en多种 ubicaciones
+    let image = '';
+    
+    // 1. Buscar en srcset (imágenes responsive)
+    $(el).find('img').each((j, imgEl) => {
+      if (image) return;
+      const srcset = $(imgEl).attr('srcset') || '';
+      if (srcset) {
+        // srcset tiene formato: url size, url size, ...
+        const parts = srcset.split(',');
+        for (const part of parts) {
+          const imgUrl = part.trim().split(' ')[0];
+          if (imgUrl && imgUrl.includes('media-amazon.com/images/I/') && !imgUrl.includes('grey-pixel')) {
+            image = imgUrl;
+            break;
+          }
+        }
+      }
+    });
+
+    // 2. Buscar en data-src (lazy loading)
+    if (!image) {
+      $(el).find('img').each((j, imgEl) => {
+        if (image) return;
+        const dataSrc = $(imgEl).attr('data-src') || '';
+        if (dataSrc.includes('media-amazon.com/images/I/') && !dataSrc.includes('grey-pixel')) {
+          image = dataSrc;
+        }
+      });
+    }
+
+    // 3. Buscar en src directo (no grey-pixel)
+    if (!image) {
+      $(el).find('img').each((j, imgEl) => {
+        if (image) return;
+        const src = $(imgEl).attr('src') || '';
+        if (src.includes('media-amazon.com/images/I/') && !src.includes('grey-pixel')) {
+          image = src;
+        }
+      });
+    }
 
     results.push({
       title: title.substring(0, 150),
@@ -131,7 +160,6 @@ async function searchAmazon(query) {
       image,
       source: 'Amazon',
       store: 'Amazon',
-      asin,
     });
   });
 
@@ -143,13 +171,11 @@ async function searchGoogleCustom(query) {
   const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
   const cx = process.env.GOOGLE_SEARCH_ID;
   if (!apiKey || !cx || apiKey.startsWith('tu_')) return [];
-
   const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query + ' buy')}&num=8`;
   const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
   if (!response.ok) return [];
   const data = await response.json();
   if (!data.items) return [];
-
   return data.items.map(item => ({
     title: item.title || '',
     link: item.link || '',
@@ -169,8 +195,6 @@ function extractStore(url) {
   if (lower.includes('aliexpress.')) return 'AliExpress';
   if (lower.includes('walmart.')) return 'Walmart';
   if (lower.includes('bestbuy.')) return 'Best Buy';
-  if (lower.includes('target.')) return 'Target';
-  if (lower.includes('etsy.')) return 'Etsy';
   try {
     const hostname = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
     return hostname.replace('www.', '').split('.')[0];
