@@ -16,10 +16,14 @@ initAdmin();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Crear directorio uploads si no existe
+// Crear directorios uploads si no existen
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
+}
+const publicUploadsDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(publicUploadsDir)) {
+  fs.mkdirSync(publicUploadsDir, { recursive: true });
 }
 
 // CORS configurado para producción
@@ -75,6 +79,17 @@ app.get('/api/proxy-image', async (req, res) => {
     console.log('Proxy image error:', err.message);
     res.status(500).send('Proxy error');
   }
+});
+
+// Manejador global de errores (devuelve JSON en vez de HTML)
+app.use((err, req, res, next) => {
+  console.error('Error global:', err.message);
+  res.status(500).json({ error: 'Error interno del servidor' });
+});
+
+// Ruta catch-all para SPA (solo GET)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(PORT, () => {

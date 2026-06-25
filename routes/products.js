@@ -111,7 +111,8 @@ function handleUploadError(err, req, res, next) {
   if (err instanceof multer.MulterError) {
     return res.status(400).json({ error: `Error de upload: ${err.message}` });
   }
-  next(err);
+  console.error('Upload error:', err);
+  res.status(500).json({ error: 'Error al procesar archivo' });
 }
 
 module.exports = router;

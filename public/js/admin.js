@@ -431,7 +431,9 @@ document.getElementById('productForm').addEventListener('submit', async (e) => {
       body: formData
     });
 
-    const data = await res.json();
+    let data;
+    const text = await res.text();
+    try { data = JSON.parse(text); } catch (e) { data = { error: text.substring(0, 200) }; }
 
     if (!res.ok) {
       alert('Error: ' + (data.error || 'Error al guardar'));
@@ -441,7 +443,7 @@ document.getElementById('productForm').addEventListener('submit', async (e) => {
     closeModal('productModal');
     loadProductos();
   } catch (err) {
-    alert('Error de conexión: ' + err.message);
+    alert('Error: ' + err.message);
   }
 });
 
