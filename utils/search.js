@@ -2,9 +2,7 @@ const cheerio = require('cheerio');
 
 async function searchProduct(query) {
   const cleanQuery = cleanOCRQuery(query);
-  if (!cleanQuery || cleanQuery.length < 2) {
-    return { results: [] };
-  }
+  if (!cleanQuery || cleanQuery.length < 2) return { results: [] };
 
   console.log('Buscando:', cleanQuery);
   const results = [];
@@ -18,21 +16,27 @@ async function searchProduct(query) {
         const key = (r.title || '').toLowerCase().substring(0, 40);
         if (!seen.has(key)) { seen.add(key); results.push(r); }
       }
-      console.log('Google:', googleResults.length);
     } catch (e) { console.log('Google error:', e.message); }
   }
 
-  // 2. Amazon scraping con imágenes
+  // 2. Amazon search (solo títulos y links)
   try {
     const amazonResults = await searchAmazon(cleanQuery);
     for (const r of amazonResults) {
       const key = (r.title || '').toLowerCase().substring(0, 40);
       if (!seen.has(key)) { seen.add(key); results.push(r); }
     }
-    console.log('Amazon:', amazonResults.length);
   } catch (e) { console.log('Amazon error:', e.message); }
 
-  // 3. Variaciones si hay pocos
+  // 3. Obtener imagen REAL de cada producto (top 4)
+  const toFetch = results.filter(r => r.link && !r.image).slice(0, 4);
+  await Promise.all(toFetch.map(async (r) => {
+    try {
+      r.image = await getProductImage(r.link);
+    } catch (e) { /* skip */ }
+  }));
+
+  // 4. Variaciones
   if (results.length < 3) {
     const variations = buildSearchVariations(cleanQuery);
     for (const v of variations) {
@@ -51,24 +55,55 @@ async function searchProduct(query) {
   return { results: results.slice(0, 8), total: results.length };
 }
 
+async function getProductImage(productUrl) {
+  const response = await fetch(productUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15',
+      'Accept': 'text/html',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+    signal: AbortSignal.timeout(10000),
+    redirect: 'follow',
+  });
+  if (!response.ok) return '';
+  const html = await response.text();
+  const $ = cheerio.load(html);
+
+  // 1. og:image
+  const og = $('meta[property="og:image"]').attr('content');
+  if (og && og.startsWith('http') && !og.includes('grey-pixel')) return og;
+
+  // 2. landingImage
+  const landing = $('#landingImage').attr('src');
+  if (landing && landing.startsWith('http') && !landing.includes('grey-pixel')) return landing;
+
+  // 3. data-old-hires
+  const hires = $('#landingImage').attr('data-old-hires');
+  if (hires && hires.startsWith('http')) return hires;
+
+  // 4. data-dynamic-image (JSON con URLs)
+  const dynamic = $('#landingImage').attr('data-dynamic-image');
+  if (dynamic) {
+    try {
+      const imgs = JSON.parse(dynamic);
+      const urls = Object.keys(imgs);
+      if (urls.length > 0) return urls[urls.length - 1]; // la más grande
+    } catch (e) { /* skip */ }
+  }
+
+  return '';
+}
+
 function cleanOCRQuery(text) {
   if (!text) return '';
-  return text
-    .replace(/[^\w\s\-.:\/]/g, ' ')
-    .replace(/\b[A-Z]{5,}\b/g, '')
-    .replace(/\b[A-Z]*([A-Z])\1{2,}[A-Z]*\b/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return text.replace(/[^\w\s\-.:\/]/g, ' ').replace(/\b[A-Z]{5,}\b/g, '').replace(/\b[A-Z]*([A-Z])\1{2,}[A-Z]*\b/g, '').replace(/\s+/g, ' ').trim();
 }
 
 function buildSearchVariations(query) {
   const variations = [];
   const words = query.split(' ').filter(w => w.length > 1);
   const modelMatch = query.match(/[A-Z]-?\d{2,5}/i);
-  if (modelMatch) {
-    variations.push(modelMatch[0]);
-    variations.push(`${modelMatch[0]} juicer`);
-  }
+  if (modelMatch) { variations.push(modelMatch[0]); variations.push(`${modelMatch[0]} juicer`); }
   if (words.length > 3) variations.push(words.slice(0, 3).join(' '));
   const stopWords = ['product', 'buy', 'price', 'store', 'online', 'shop', 'the', 'a', 'an'];
   const simplified = words.filter(w => !stopWords.includes(w.toLowerCase())).join(' ');
@@ -76,7 +111,6 @@ function buildSearchVariations(query) {
   return [...new Set(variations)];
 }
 
-// ========== AMAZON ==========
 async function searchAmazon(query) {
   const url = `https://www.amazon.com/s?k=${encodeURIComponent(query)}&language=en_US`;
   const response = await fetch(url, {
@@ -88,21 +122,15 @@ async function searchAmazon(query) {
     signal: AbortSignal.timeout(15000),
     redirect: 'follow',
   });
-
   if (!response.ok) return [];
-
   const html = await response.text();
   const $ = cheerio.load(html);
   const results = [];
-
   $('[data-component-type="s-search-result"]').each((i, el) => {
     if (i >= 6) return false;
-
     const title = $(el).find('h2 span').text().trim();
     if (!title || title.length < 3) return;
-
     const price = $(el).find('.a-price .a-offscreen').first().text().trim();
-
     let link = '';
     $(el).find('a').each((j, aEl) => {
       const href = $(aEl).attr('href') || '';
@@ -110,63 +138,11 @@ async function searchAmazon(query) {
         link = href.startsWith('http') ? href : `https://www.amazon.com${href}`;
       }
     });
-
-    // Buscar imagen real en多种 ubicaciones
-    let image = '';
-    
-    // 1. Buscar en srcset (imágenes responsive)
-    $(el).find('img').each((j, imgEl) => {
-      if (image) return;
-      const srcset = $(imgEl).attr('srcset') || '';
-      if (srcset) {
-        // srcset tiene formato: url size, url size, ...
-        const parts = srcset.split(',');
-        for (const part of parts) {
-          const imgUrl = part.trim().split(' ')[0];
-          if (imgUrl && imgUrl.includes('media-amazon.com/images/I/') && !imgUrl.includes('grey-pixel')) {
-            image = imgUrl;
-            break;
-          }
-        }
-      }
-    });
-
-    // 2. Buscar en data-src (lazy loading)
-    if (!image) {
-      $(el).find('img').each((j, imgEl) => {
-        if (image) return;
-        const dataSrc = $(imgEl).attr('data-src') || '';
-        if (dataSrc.includes('media-amazon.com/images/I/') && !dataSrc.includes('grey-pixel')) {
-          image = dataSrc;
-        }
-      });
-    }
-
-    // 3. Buscar en src directo (no grey-pixel)
-    if (!image) {
-      $(el).find('img').each((j, imgEl) => {
-        if (image) return;
-        const src = $(imgEl).attr('src') || '';
-        if (src.includes('media-amazon.com/images/I/') && !src.includes('grey-pixel')) {
-          image = src;
-        }
-      });
-    }
-
-    results.push({
-      title: title.substring(0, 150),
-      link,
-      snippet: price ? `Precio: ${price}` : '',
-      image,
-      source: 'Amazon',
-      store: 'Amazon',
-    });
+    results.push({ title: title.substring(0, 150), link, snippet: price ? `Precio: ${price}` : '', image: '', source: 'Amazon', store: 'Amazon' });
   });
-
   return results;
 }
 
-// ========== GOOGLE CUSTOM SEARCH ==========
 async function searchGoogleCustom(query) {
   const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
   const cx = process.env.GOOGLE_SEARCH_ID;
@@ -177,28 +153,18 @@ async function searchGoogleCustom(query) {
   const data = await response.json();
   if (!data.items) return [];
   return data.items.map(item => ({
-    title: item.title || '',
-    link: item.link || '',
-    snippet: item.snippet || '',
+    title: item.title || '', link: item.link || '', snippet: item.snippet || '',
     image: item.pagemap?.cse_thumbnail?.[0]?.src || item.pagemap?.cse_image?.[0]?.src || '',
-    source: extractStore(item.link),
-    store: extractStore(item.link),
+    source: extractStore(item.link), store: extractStore(item.link),
   }));
 }
 
 function extractStore(url) {
   if (!url) return '';
   const lower = url.toLowerCase();
-  if (lower.includes('amazon.')) return 'Amazon';
-  if (lower.includes('mercadolibre')) return 'MercadoLibre';
-  if (lower.includes('ebay.')) return 'eBay';
-  if (lower.includes('aliexpress.')) return 'AliExpress';
-  if (lower.includes('walmart.')) return 'Walmart';
-  if (lower.includes('bestbuy.')) return 'Best Buy';
-  try {
-    const hostname = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
-    return hostname.replace('www.', '').split('.')[0];
-  } catch (e) { return ''; }
+  const stores = { 'amazon.': 'Amazon', 'ebay.': 'eBay', 'mercadolibre': 'MercadoLibre', 'aliexpress.': 'AliExpress', 'walmart.': 'Walmart' };
+  for (const [d, n] of Object.entries(stores)) { if (lower.includes(d)) return n; }
+  try { return new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace('www.', '').split('.')[0]; } catch (e) { return ''; }
 }
 
 module.exports = { searchProduct };
