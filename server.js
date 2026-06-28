@@ -13,6 +13,9 @@ const fs = require('fs');
 const { initAdmin } = require('./db/database');
 initAdmin();
 
+const { seed } = require('./seed');
+seed();
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -47,6 +50,24 @@ app.use('/api/payment', paymentRoutes);
 // Health check para UptimeRobot
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Seed endpoint temporal (solo admin puede usarlo)
+const authMiddleware = require('./middleware/auth');
+app.post('/api/seed', authMiddleware, (req, res) => {
+  try {
+    const { db } = require('./db/database');
+    const count = db.prepare('SELECT COUNT(*) as c FROM productos').get().c;
+    if (count > 0) {
+      return res.json({ ok: true, message: `Ya hay ${count} productos, no se reinicia.` });
+    }
+    const { seed } = require('./seed');
+    seed();
+    const newCount = db.prepare('SELECT COUNT(*) as c FROM productos').get().c;
+    res.json({ ok: true, message: `${newCount} productos creados.` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Proxy de imágenes - fetch desde Amazon/externos y servir desde nuestro servidor
