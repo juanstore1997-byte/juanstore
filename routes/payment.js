@@ -22,8 +22,8 @@ const upload = multer({
   }
 });
 
-// Generate QR for a product
-router.get('/qr/:productoId', async (req, res) => {
+// Get QR for a product (imagen estática oficial)
+router.get('/qr/:productoId', (req, res) => {
   const product = db.prepare('SELECT * FROM productos WHERE id = ?').get(req.params.productoId);
   if (!product) return res.status(404).json({ error: 'Producto no encontrado' });
 
@@ -31,17 +31,10 @@ router.get('/qr/:productoId', async (req, res) => {
     producto: product.nombre,
     monto: product.precio_venta,
     moneda: 'Bs.',
-    titular: 'Tu Nombre',
-    ci: 'Tu CI',
-    banco: 'BCP'
   };
 
-  try {
-    const qr = await QRCode.toDataURL(JSON.stringify(paymentData), { width: 300 });
-    res.json({ qr, data: paymentData });
-  } catch (err) {
-    res.status(500).json({ error: 'Error generando QR' });
-  }
+  const qr = '/img/qr-pago.jpeg';
+  res.json({ qr, data: paymentData });
 });
 
 // Client submits purchase intent
