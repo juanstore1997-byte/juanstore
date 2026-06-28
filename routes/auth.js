@@ -6,7 +6,7 @@ const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
-router.post('/login', async (req, res) => {
+router.post('/login', (req, res) => {
   try {
     const { usuario, password } = req.body;
 
@@ -15,8 +15,11 @@ router.post('/login', async (req, res) => {
     }
 
     const admin = db.prepare('SELECT * FROM admin WHERE usuario = ?').get(usuario);
+    if (!admin) {
+      return res.status(401).json({ error: 'Credenciales incorrectas' });
+    }
 
-    if (!admin || !(await bcrypt.compare(password, admin.password_hash))) {
+    if (!bcrypt.compareSync(password, admin.password_hash)) {
       return res.status(401).json({ error: 'Credenciales incorrectas' });
     }
 
