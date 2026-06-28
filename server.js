@@ -30,14 +30,8 @@ if (!fs.existsSync(publicUploadsDir)) {
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(uploadsDir));
 
-// Health check para UptimeRobot (evitar sleep en Render free tier)
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
+// API routes antes que static middleware
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
@@ -49,6 +43,11 @@ app.use('/api/recognition', recognitionRoutes);
 
 const paymentRoutes = require('./routes/payment');
 app.use('/api/payment', paymentRoutes);
+
+// Health check para UptimeRobot
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // Proxy de imágenes - fetch desde Amazon/externos y servir desde nuestro servidor
 app.get('/api/proxy-image', async (req, res) => {
@@ -85,9 +84,13 @@ app.get('/api/proxy-image', async (req, res) => {
   }
 });
 
+// Static middleware después de API routes
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(uploadsDir));
+
 // Manejador global de errores (devuelve JSON en vez de HTML)
 app.use((err, req, res, next) => {
-  console.error('Error global:', err.message);
+  console.error('Error global:', err.message, err.stack);
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
