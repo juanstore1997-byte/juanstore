@@ -116,5 +116,6 @@ function handleUploadError(err, req, res, next) {
   res.status(500).json({ error: 'Error al procesar archivo' });
 }
 
+router.use(handleUploadError);
+
 module.exports = router;
-module.exports.handleUploadError = handleUploadError;

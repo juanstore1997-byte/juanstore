@@ -43,7 +43,6 @@ app.use('/api/auth', authRoutes);
 
 const productRoutes = require('./routes/products');
 app.use('/api/products', productRoutes);
-app.use(productRoutes.handleUploadError);
 
 const recognitionRoutes = require('./routes/recognition');
 app.use('/api/recognition', recognitionRoutes);
