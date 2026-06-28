@@ -276,7 +276,7 @@ async function fetchImageFromLink() {
   if (!link) { alert('Primero selecciona un producto (debe tener enlace)'); return; }
   
   const btn = event?.target || document.querySelector('.btn-sm.btn-primary[onclick*="fetchImageFromLink"]');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Obteniendo...'; }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
   
   try {
     const res = await fetch(`${API}/api/recognition/fetch-product-image`, {
@@ -284,11 +284,6 @@ async function fetchImageFromLink() {
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: link })
     });
-    
-    if (!res.ok) {
-      throw new Error('Error del servidor');
-    }
-    
     const data = await res.json();
     
     if (data.image) {
@@ -296,11 +291,10 @@ async function fetchImageFromLink() {
       previewRefUrl(data.image);
       showResult('✅ Imagen de referencia cargada desde la tienda');
     } else {
-      showResult('⚠️ No se pudo obtener la imagen automáticamente. <strong>Solución:</strong> Visita el enlace del producto, haz clic derecho sobre la imagen → "Copiar dirección de imagen", y pégala arriba.');
+      alert('No se pudo obtener la imagen automáticamente. Ve al enlace, copia la URL de la imagen y pégala manualmente.');
     }
   } catch (err) {
-    console.error('Error fetchImage:', err);
-    showResult('⚠️ No se pudo conectar con la tienda. <strong>Solución manual:</strong> Visita el enlace, haz clic derecho en la imagen → "Copiar dirección de imagen", y pégala en el campo de arriba.');
+    alert('Error al obtener imagen: ' + err.message);
   }
   
   if (btn) { btn.disabled = false; btn.textContent = '🔄 Obtener'; }

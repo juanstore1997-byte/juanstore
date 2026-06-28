@@ -93,12 +93,13 @@ router.put('/:id', authMiddleware, upload.single('foto'), (req, res) => {
   }
 });
 
-// Admin: delete product
+// Admin: delete product (also deletes associated sales)
 router.delete('/:id', authMiddleware, (req, res) => {
   try {
     const existing = db.prepare('SELECT * FROM productos WHERE id = ?').get(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
 
+    db.prepare('DELETE FROM ventas WHERE producto_id = ?').run(req.params.id);
     db.prepare('DELETE FROM productos WHERE id = ?').run(req.params.id);
     res.json({ deleted: true });
   } catch (err) {

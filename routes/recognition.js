@@ -416,14 +416,10 @@ router.post('/fetch-product-image', authMiddleware, async (req, res) => {
   try {
     const { fetchProductImage } = require('../utils/search');
     const image = await fetchProductImage(url);
-    if (image) {
-      res.json({ image, url });
-    } else {
-      res.json({ image: '', url, error: 'No se pudo extraer la imagen. La tienda puede bloquear acceso desde servidores.' });
-    }
+    res.json({ image, url });
   } catch (err) {
-    console.error('Error obteniendo imagen:', err.message);
-    res.json({ image: '', url, error: 'No se pudo conectar con la tienda.' });
+    console.error('Error obteniendo imagen:', err);
+    res.json({ image: '', url, error: err.message });
   }
 });
 
